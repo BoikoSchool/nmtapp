@@ -184,7 +184,59 @@ export const QuestionRendererComponent = ({ question, value, onChange, readOnly 
         );
     }
 
-    // 3. Short Answer
+    // 3. Grouped Choice 3 (Biology style)
+    if (question.type === 'grouped_choice_3') {
+        const data = question.options as { groups: any[] };
+        const currentAnswers = value || {};
+
+        const handleSelect = (groupId: string, optionId: string) => {
+            if (readOnly) return;
+            onChange({ ...currentAnswers, [groupId]: optionId });
+        };
+
+        return (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {data.groups?.map((group: any, gIdx: number) => {
+                    const groupId = String(gIdx + 1);
+                    return (
+                        <div key={groupId} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm flex flex-col">
+                            <div className="bg-slate-50 p-3 border-b border-slate-200">
+                                <span className="text-xs font-black text-slate-400 uppercase tracking-wider mb-1 block">Група {groupId}</span>
+                                <div className="text-sm font-bold text-slate-700 leading-tight">{group.title}</div>
+                            </div>
+                            <div className="p-2 space-y-1 grow">
+                                {Array.isArray(group.options) && group.options.map((opt: any) => {
+                                    const isSelected = String(currentAnswers[groupId]) === String(opt.id);
+                                    return (
+                                        <button
+                                            key={opt.id}
+                                            onClick={() => handleSelect(groupId, opt.id)}
+                                            className={cn(
+                                                "w-full text-left p-3 rounded-xl border-2 transition-all flex items-center gap-3",
+                                                isSelected
+                                                    ? "border-green-500 bg-green-50 text-green-700 shadow-sm"
+                                                    : "border-transparent hover:bg-slate-50 text-slate-600"
+                                            )}
+                                        >
+                                            <div className={cn(
+                                                "w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold shrink-0",
+                                                isSelected ? "border-green-500 bg-green-500 text-white" : "border-slate-200"
+                                            )}>
+                                                {opt.id}
+                                            </div>
+                                            <div className="text-sm font-medium leading-tight">{opt.text}</div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    }
+
+    // 4. Short Answer
     if (question.type === 'short_answer') {
         return (
             <div className="max-w-xs">

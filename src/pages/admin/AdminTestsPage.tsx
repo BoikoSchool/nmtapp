@@ -96,6 +96,17 @@ export const AdminTestsPage = () => {
                 };
             }
 
+            if (item.type === 'grouped_choice_3') {
+                return {
+                    ...base,
+                    type: 'grouped_choice_3',
+                    options: {
+                        groups: item.groups
+                    },
+                    correct_answer: item.answer || item.correctAnswer || item.correctAnswers
+                };
+            }
+
             // Default fallback
             return {
                 ...base,

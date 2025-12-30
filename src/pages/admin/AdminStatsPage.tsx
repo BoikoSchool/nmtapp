@@ -68,6 +68,17 @@ export const AdminStatsPage = () => {
                     const mKeys = Array.isArray(answerData) ? answerData : (answerData.answers || []);
                     return mKeys.map((k: string) => getLabel(options, k)).join('; ');
 
+                case 'grouped_choice_3':
+                    const gData = answerData as Record<string, any>;
+                    return Object.entries(gData)
+                        .sort(([a], [b]) => a.localeCompare(b))
+                        .map(([gKey, aKey], idx) => {
+                            const group = options?.groups?.[idx] || {};
+                            const aText = getLabel(group.options || [], aKey);
+                            return `Гр${gKey}: ${aText}`;
+                        })
+                        .join(' | ');
+
                 case 'matching':
                     const matchingLeft = options?.leftSide || [];
                     const matchingRight = options?.rightSide || options?.options || [];
