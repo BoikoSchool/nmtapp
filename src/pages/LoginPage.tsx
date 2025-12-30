@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { useNavigate } from 'react-router-dom';
 import { Loader2, Mail } from 'lucide-react';
 
 export const LoginPage = () => {
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
     const [sent, setSent] = useState(false);
-    const navigate = useNavigate();
+
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();

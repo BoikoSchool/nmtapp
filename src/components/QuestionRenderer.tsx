@@ -17,21 +17,7 @@ const LETTERS = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Є', 'Ж'];
 
 export const QuestionRendererComponent = ({ question, value, onChange, readOnly = false }: QuestionRendererProps) => {
 
-    // Helper to render content with markdown (images, bold, etc)
-    const renderContent = (content: string) => (
-        <div className="prose prose-slate max-w-none prose-img:rounded-xl prose-img:shadow-md prose-img:max-h-[400px] prose-p:my-2 prose-headings:my-4">
-            <ReactMarkdown
-                remarkPlugins={[remarkMath]}
-                rehypePlugins={[rehypeKatex]}
-                components={{
-                    img: ({ node, ...props }) => <img {...props} className="max-w-full h-auto rounded-xl border border-slate-200" />,
-                    p: ({ children }) => <p className="text-xl font-medium text-slate-700 leading-relaxed my-2">{children}</p>
-                }}
-            >
-                {content}
-            </ReactMarkdown>
-        </div>
-    );
+
 
     // 1. Single Choice
     if (question.type === 'single_choice') {
