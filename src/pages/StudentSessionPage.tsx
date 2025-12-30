@@ -19,7 +19,8 @@ const QuestionDisplay = React.memo(({
     onNext,
     onPrev,
     isFirst,
-    isLast
+    isLast,
+    isFinished
 }: {
     question: Question,
     answer: any,
@@ -27,7 +28,8 @@ const QuestionDisplay = React.memo(({
     onNext: () => void,
     onPrev: () => void,
     isFirst: boolean,
-    isLast: boolean
+    isLast: boolean,
+    isFinished: boolean
 }) => {
     return (
         <div className="bg-white rounded-3xl p-6 md:p-8 shadow-md border border-slate-200">
@@ -50,6 +52,7 @@ const QuestionDisplay = React.memo(({
                 question={question}
                 value={answer}
                 onChange={onAnswer}
+                readOnly={isFinished}
             />
 
             {/* Navigation Buttons (Sticky Footer) */}
@@ -103,7 +106,7 @@ export const StudentSessionPage = () => {
                 table: 'test_sessions',
                 filter: `id=eq.${sessionId}`
             }, (payload: any) => {
-                setSession(payload.new as TestSession);
+                setSession(prev => prev ? { ...prev, ...payload.new } : payload.new as TestSession);
 
                 if (payload.new.status === 'finished') {
                     // Finalize silently if not already finished
@@ -433,6 +436,7 @@ export const StudentSessionPage = () => {
                             onNext={() => setCurrentQuestionIndex(prev => Math.min(activeQuestions.length - 1, prev + 1))}
                             isFirst={currentQuestionIndex === 0}
                             isLast={currentQuestionIndex === activeQuestions.length - 1}
+                            isFinished={isFinished}
                         />
                     ) : (
                         <div className="text-center py-12 text-slate-400">Питань у цьому блоці немає.</div>
