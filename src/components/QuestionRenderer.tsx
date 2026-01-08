@@ -54,6 +54,13 @@ export const QuestionRendererComponent = ({ question, value, onChange, readOnly 
                                 {label}
                             </div>
                             <div className="font-medium text-slate-700 text-lg leading-snug grow">
+                                {opt.image && (
+                                    <img
+                                        src={opt.image}
+                                        alt={`Option ${label}`}
+                                        className="mb-3 max-h-40 rounded-lg border border-slate-200"
+                                    />
+                                )}
                                 <ReactMarkdown
                                     remarkPlugins={[remarkMath]}
                                     rehypePlugins={[rehypeKatex]}
