@@ -249,13 +249,87 @@ export const QuestionRendererComponent = ({ question, value, onChange, readOnly 
             <div className="max-w-xs">
                 <label className="block text-sm font-bold text-slate-500 mb-2 uppercase">Ваша відповідь</label>
                 <input
-                    type="number" // or text? math answers are usually numbers
+                    type="number"
                     placeholder="Введіть число..."
                     className="w-full text-3xl font-bold p-4 border-2 border-slate-200 rounded-xl outline-none focus:border-green-500 focus:shadow-lg focus:shadow-green-100 transition-all text-center placeholder:text-slate-300"
                     value={value?.text || ''}
                     onChange={e => !readOnly && onChange({ text: e.target.value })}
                     readOnly={readOnly}
                 />
+            </div>
+        );
+    }
+
+    // 5. Multiple Choice 3 (Select 3 out of 7)
+    if (question.type === 'multiple_choice_3') {
+        const optionList = question.options as any[];
+        const currentAnswers = (value?.answers as string[]) || [];
+
+        const toggleOption = (optId: string) => {
+            if (readOnly) return;
+
+            let newAnswers = [...currentAnswers];
+            if (newAnswers.includes(optId)) {
+                newAnswers = newAnswers.filter(id => id !== optId);
+            } else {
+                if (newAnswers.length >= 3) return; // Limit to 3 selections
+                newAnswers.push(optId);
+            }
+            onChange({ answers: newAnswers });
+        };
+
+        return (
+            <div className="grid grid-cols-1 gap-3">
+                {optionList.map((opt, idx) => {
+                    const isSelected = currentAnswers.includes(opt.id);
+                    return (
+                        <label
+                            key={opt.id}
+                            className={cn(
+                                "flex items-center gap-4 p-4 rounded-xl border-2 transition-all cursor-pointer group",
+                                isSelected
+                                    ? "border-green-500 bg-green-50 shadow-md ring-1 ring-green-500"
+                                    : "border-slate-100 hover:border-slate-300 hover:bg-slate-50",
+                                readOnly && "pointer-events-none opacity-80"
+                            )}
+                        >
+                            <input
+                                type="checkbox"
+                                className="hidden"
+                                checked={isSelected}
+                                onChange={() => toggleOption(opt.id)}
+                            />
+                            <div className={cn(
+                                "w-10 h-10 shrink-0 rounded-lg border-2 flex items-center justify-center font-bold text-lg transition-colors",
+                                isSelected
+                                    ? "border-green-500 bg-green-500 text-white"
+                                    : "border-slate-200 text-slate-400 group-hover:border-slate-400 group-hover:text-slate-500"
+                            )}>
+                                {LETTERS[idx] || opt.id}
+                            </div>
+                            <div className="font-medium text-slate-700 text-lg leading-snug grow">
+                                {opt.image && (
+                                    <img
+                                        src={opt.image}
+                                        alt={`Option ${opt.id}`}
+                                        className="mb-3 max-h-40 rounded-lg border border-slate-200"
+                                    />
+                                )}
+                                <ReactMarkdown
+                                    remarkPlugins={[remarkMath]}
+                                    rehypePlugins={[rehypeKatex]}
+                                    components={{ p: ({ children }) => <span className="m-0">{children}</span> }}
+                                >
+                                    {opt.text}
+                                </ReactMarkdown>
+                            </div>
+                            {isSelected && <Check className="w-6 h-6 text-green-600 shrink-0" />}
+                        </label>
+                    );
+                })}
+                <div className="mt-2 text-sm text-slate-500 font-medium">
+                    Обрано: {currentAnswers.length} / 3
+                </div>
             </div>
         );
     }
