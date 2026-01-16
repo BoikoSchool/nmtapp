@@ -211,8 +211,9 @@ export const StudentSessionPage = () => {
             const testIds = loadedTests.map((t: any) => t.id);
             const { data: testQuestions, error: tqError } = await supabase
                 .from('test_questions')
-                .select('test_id, questions(*)')
-                .in('test_id', testIds);
+                .select('test_id, order_priority, questions(*)')
+                .in('test_id', testIds)
+                .order('order_priority', { ascending: true }); // Ensure correct display order
 
             if (tqError) throw tqError;
 
