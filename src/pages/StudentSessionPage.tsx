@@ -64,12 +64,14 @@ const QuestionDisplay = React.memo(({
                 >
                     Назад
                 </button>
-                <button
-                    onClick={onNext}
-                    className="px-8 py-3 rounded-xl font-bold bg-green-500 text-white hover:bg-green-600 shadow-lg shadow-green-200 transition-all active:scale-95"
-                >
-                    {isLast ? 'До навігації' : 'Далі'}
-                </button>
+                {!isLast && (
+                    <button
+                        onClick={onNext}
+                        className="px-8 py-3 rounded-xl font-bold bg-green-500 text-white hover:bg-green-600 shadow-lg shadow-green-200 transition-all active:scale-95"
+                    >
+                        Далі
+                    </button>
+                )}
             </div>
         </div>
     );

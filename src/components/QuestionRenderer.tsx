@@ -92,9 +92,23 @@ export const QuestionRendererComponent = ({ question, value, onChange, readOnly 
 
         const handleSelect = (promptId: string, optionId: string) => {
             if (readOnly) return;
-            // If radio behavior (one option per prompt)? Usually matching is unique pairs.
-            // But usually UI is matrix.
-            const newAns = { ...currentAnswers, [promptId]: optionId };
+
+            // Start with a copy of current answers
+            const newAns = { ...currentAnswers };
+
+            // Check if this optionId is already selected for another prompt, if so - clear it there
+            // This ensures one-to-one mapping (unique column selection)
+            Object.keys(newAns).forEach(key => {
+                if (newAns[key] === optionId && key !== promptId) {
+                    delete newAns[key];
+                }
+            });
+
+            // If clicking the already selected option for this prompt, deselect it? 
+            // Standard behavior usually allows re-selecting to confirm or just overwrites.
+            // Let's just set it.
+            newAns[promptId] = optionId;
+
             onChange(newAns);
         };
 
