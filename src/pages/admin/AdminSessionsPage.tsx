@@ -103,12 +103,20 @@ export const AdminSessionsPage = () => {
             }
         }
 
-        if (status === 'paused') {
-            updateData.last_paused_at = timestamp;
+        if (status === 'finished') {
+            // Use RPC to bulk finalize all students
+            const { error } = await supabase.rpc('finish_session_bulk', { p_session_id: id });
+            if (error) {
+                alert('Error finishing session: ' + error.message);
+                fetchData();
+            } else {
+                fetchData();
+            }
+            return;
         }
 
-        if (status === 'finished') {
-            updateData.ends_at = timestamp;
+        if (status === 'paused') {
+            updateData.last_paused_at = timestamp;
         }
 
         const { error } = await supabase.from('test_sessions').update(updateData).eq('id', id);
