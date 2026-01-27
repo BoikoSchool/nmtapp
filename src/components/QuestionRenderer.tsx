@@ -85,8 +85,8 @@ export const QuestionRendererComponent = ({ question, value, onChange, readOnly 
         );
     }
 
-    // 2. Matching (Logic Pairs)
-    if (question.type === 'matching') {
+    // 2. Matching (Logic Pairs) AND Sequence (Ordering)
+    if (question.type === 'matching' || question.type === 'sequence') {
         const data = question.options as { prompts: any[], options: any[] };
         const currentAnswers = value || {};
 

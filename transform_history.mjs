@@ -612,101 +612,100 @@ const input = [
 ];
 
 const transformed = input.map(item => {
-    let content = item.question;
-    if (item.image) {
-        content += `\n\n![Image](${item.image})`;
+  let content = item.question;
+  if (item.image) {
+    content += `\n\n![Image](${item.image})`;
+  }
+
+  if (item.type === "single") {
+    // Standard mapping logic
+    const options = item.options.map((opt, idx) => ({
+      id: ["А", "Б", "В", "Г"][idx] || opt.id.toString(), // Default to letters if sequential
+      text: opt.label,
+      image: opt.image
+    }));
+
+    // Fuzzy match answer
+    let correctId = "ERROR";
+    const ansTrim = item.answer.trim();
+
+    // Check by ID match matching label (e.g. answer="4" matches option with label "4")
+    const matchByLabel = options.find(o => o.text.trim() === ansTrim);
+    if (matchByLabel) correctId = matchByLabel.id;
+
+    // Or direct ID match if answer is numeric and option is not found by label
+    if (correctId === "ERROR" && !isNaN(parseInt(ansTrim))) {
+      // Maybe answer "4" means 4th option?
+      const idx = parseInt(ansTrim) - 1;
+      if (options[idx]) correctId = options[idx].id;
     }
 
-    if (item.type === "single") {
-         // Standard mapping logic
-         const options = item.options.map((opt, idx) => ({
-             id: ["А","Б","В","Г"][idx] || opt.id.toString(), // Default to letters if sequential
-             text: opt.label,
-             image: opt.image
-         }));
-         
-         // Fuzzy match answer
-         let correctId = "ERROR";
-         const ansTrim = item.answer.trim();
-         
-         // Check by ID match matching label (e.g. answer="4" matches option with label "4")
-         const matchByLabel = options.find(o => o.text.trim() === ansTrim);
-         if (matchByLabel) correctId = matchByLabel.id;
-         
-         // Or direct ID match if answer is numeric and option is not found by label
-         if (correctId === "ERROR" && !isNaN(parseInt(ansTrim))) {
-             // Maybe answer "4" means 4th option?
-             const idx = parseInt(ansTrim) - 1;
-             if (options[idx]) correctId = options[idx].id;
-         }
+    // Or direct text match
+    const matchByText = options.find(o => o.text.trim().includes(ansTrim) || ansTrim.includes(o.text.trim()));
+    if (correctId === "ERROR" && matchByText) correctId = matchByText.id;
 
-         // Or direct text match
-         const matchByText = options.find(o => o.text.trim().includes(ansTrim) || ansTrim.includes(o.text.trim()));
-         if (correctId === "ERROR" && matchByText) correctId = matchByText.id;
+    return {
+      type: "single_choice",
+      content,
+      options,
+      correct_answer: { "answer": correctId },
+      points_weight: 1
+    };
+  }
 
-         return {
-             type: "single_choice",
-             content,
-             options,
-             correct_answer: { "answer": correctId },
-             points_weight: 1
-         };
+  if (item.type === "matching") {
+    // Parse Left (Prompts)
+    const left = item.pairs.left.map(s => {
+      const parts = s.split(/^\d+\.\s*/);
+      const id = s.match(/^(\d+)/)?.[1] || s;
+      const text = parts[1] || s;
+      return { id, text };
+    });
+
+    // Parse Right (Options)
+    const right = item.pairs.right.map(s => {
+      const parts = s.split(/^([A-ZА-ЯЄІЇҐ])\.\s*/);
+      const id = s.match(/^([A-ZА-ЯЄІЇҐ])/)?.[1] || s.charAt(0);
+      const text = parts[2] || s; // parts[2] because split captures the separator group
+      return { id, text };
+    });
+
+    // Check if this is "Multiple Choice 3 from 7" (Q28-30)
+    // Heuristic: Left side is just ["1", "2", "3"] and Right size > 4
+    const isMultiSelect = left.length === 3 && left.every((l, i) => l.text === (i + 1).toString() || !l.text) && right.length > 5;
+
+    if (isMultiSelect) {
+      const correctIds = Object.values(item.answer); // ["Б", "Д", "Є"]
+      return {
+        type: "multiple_choice_3",
+        content,
+        options: right, // Just pass the list of options
+        correct_answer: { "answers": correctIds },
+        points_weight: 1 // Will be rescored by engine potentially
+      };
     }
 
-    if (item.type === "matching") {
-        // Parse Left (Prompts)
-        const left = item.pairs.left.map(s => {
-             const parts = s.split(/^\d+\.\s*/);
-             const id = s.match(/^(\d+)/)?.[1] || s;
-             const text = parts[1] || s;
-             return { id, text };
-        });
+    // Check if Sequence
+    const isSequence = content.toLowerCase().includes("послідовність") || content.toLowerCase().includes("хронологічн");
 
-        // Parse Right (Options)
-        const right = item.pairs.right.map(s => {
-            const parts = s.split(/^([A-ZА-ЯЄІЇҐ])\.\s*/);
-            const id = s.match(/^([A-ZА-ЯЄІЇҐ])/)?.[1] || s.charAt(0);
-            const text = parts[2] || s; // parts[2] because split captures the separator group
-            return { id, text };
-        });
-
-        // Check if this is "Multiple Choice 3 from 7" (Q28-30)
-        // Heuristic: Left side is just ["1", "2", "3"] and Right size > 4
-        const isMultiSelect = left.length === 3 && left.every((l, i) => l.text === (i+1).toString() || !l.text) && right.length > 5;
-        
-        if (isMultiSelect) {
-             const correctIds = Object.values(item.answer); // ["Б", "Д", "Є"]
-             return {
-                 type: "multiple_choice_3",
-                 content,
-                 options: right, // Just pass the list of options
-                 correct_answer: { "answers": correctIds },
-                 points_weight: 1 // Will be rescored by engine potentially
-             };
-        }
-        
-        // Check if Sequence
-        // Heuristic: Left side is "1. ...", "2. ...", etc and user instructions say "chronological"
-        // In DB we usually store this as Matching where Prompt 1 -> Event A
-        
-        // Clean up answer object
-        const cleanAnswer = {};
-        for (const [key, val] of Object.entries(item.answer)) {
-            // key is "1", val is "Д"
-            cleanAnswer[key] = val;    
-        }
-
-        return {
-            type: "matching",
-            content,
-            options: {
-                prompts: left,
-                options: right
-            },
-            correct_answer: cleanAnswer,
-            points_weight: 1
-        };
+    // Clean up answer object
+    const cleanAnswer = {};
+    for (const [key, val] of Object.entries(item.answer)) {
+      // key is "1", val is "Д"
+      cleanAnswer[key] = val;
     }
+
+    return {
+      type: isSequence ? "sequence" : "matching",
+      content,
+      options: {
+        prompts: left,
+        options: right
+      },
+      correct_answer: cleanAnswer,
+      points_weight: isSequence ? 3 : 1 // Sequence is max 3 points, Matching usually 1 per pair (so 4 total? No default is 1, but usually 4. We'll set 3 for sequence per NMT rules)
+    };
+  }
 });
 
 console.log(JSON.stringify(transformed, null, 2));
