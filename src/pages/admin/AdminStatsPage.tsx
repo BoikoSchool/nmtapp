@@ -80,8 +80,9 @@ export const AdminStatsPage = () => {
                         .join(' | ');
 
                 case 'matching':
-                    const matchingLeft = options?.leftSide || [];
+                    const matchingLeft = options?.leftSide || options?.prompts || [];
                     const matchingRight = options?.rightSide || options?.options || [];
+                    if (!answerData || typeof answerData !== 'object') return '';
                     return Object.entries(answerData as Record<string, any>)
                         .sort(([a], [b]) => a.localeCompare(b))
                         .map(([qKey, aKey]) => {
@@ -92,8 +93,20 @@ export const AdminStatsPage = () => {
                         .join(' | ');
 
                 case 'sequence':
+                    // Sequence usually stored as {"1": "B", "2": "A"} or just array logic in some versions.
+                    // Based on renderer, it's matching-like object key->val.
+                    // But if it's imported as matching, it follows matching structure.
+                    // If my import fixed it to type=sequence, check structure.
+                    // transform_history.mjs sets correct_answer: {"1": "A", "2": "B"}
+                    const seqOpts = options?.options || options || [];
+                    if (typeof answerData === 'object' && !Array.isArray(answerData)) {
+                        return Object.entries(answerData as Record<string, any>)
+                            .sort(([a], [b]) => a.localeCompare(b))
+                            .map(([pos, val]) => `${pos}: ${getLabel(seqOpts, val)}`)
+                            .join(' -> ');
+                    }
                     const seqKeys = Array.isArray(answerData) ? answerData : [];
-                    return seqKeys.map((k: string) => getLabel(options, k)).join(' -> ');
+                    return seqKeys.map((k: string) => getLabel(seqOpts, k)).join(' -> ');
 
                 default:
                     if (typeof answerData === 'object') return JSON.stringify(answerData);
