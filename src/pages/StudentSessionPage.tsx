@@ -339,7 +339,7 @@ export const StudentSessionPage = () => {
                                     </div>
                                     <div className="flex items-center gap-4">
                                         <div className="text-right">
-                                            <div className="text-sm font-bold text-slate-600 leading-none">{res.raw}/{res.max_raw}</div>
+                                            <div className="text-sm font-bold text-slate-600 leading-none">{res.raw}/{res.questions_count || res.max_raw}</div>
                                         </div>
                                         <div className="text-right border-l pl-4">
                                             <div className="text-2xl font-black text-green-600 leading-none">{res.scaled}</div>
