@@ -124,6 +124,13 @@ export const QuestionRendererComponent = ({ question, value, onChange, readOnly 
                                     {idx + 1}
                                 </span>
                                 <div className="text-sm font-medium text-slate-800 leading-snug">
+                                    {prompt.image && (
+                                        <img
+                                            src={prompt.image}
+                                            alt={`Prompt ${idx + 1}`}
+                                            className="mb-3 max-h-40 rounded-lg border border-slate-200 block"
+                                        />
+                                    )}
                                     <ReactMarkdown
                                         remarkPlugins={[remarkMath]}
                                         rehypePlugins={[rehypeKatex]}
@@ -188,7 +195,14 @@ export const QuestionRendererComponent = ({ question, value, onChange, readOnly 
                                 <span className="inline-flex items-center justify-center w-6 h-6 bg-green-100 text-green-700 rounded-full text-xs font-bold shrink-0">
                                     {LETTERS[idx] || opt.id}
                                 </span>
-                                <span className="text-slate-700 leading-snug text-xl font-semibold">
+                                <div className="text-slate-700 leading-snug text-xl font-semibold">
+                                    {opt.image && (
+                                        <img
+                                            src={opt.image}
+                                            alt={`Option ${LETTERS[idx]}`}
+                                            className="mb-3 max-h-40 rounded-lg border border-slate-200 block"
+                                        />
+                                    )}
                                     <ReactMarkdown
                                         remarkPlugins={[remarkMath]}
                                         rehypePlugins={[rehypeKatex]}
@@ -196,7 +210,7 @@ export const QuestionRendererComponent = ({ question, value, onChange, readOnly 
                                     >
                                         {opt.text}
                                     </ReactMarkdown>
-                                </span>
+                                </div>
                             </div>
                         ))}
                     </div>
