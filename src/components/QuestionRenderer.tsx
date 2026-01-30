@@ -18,8 +18,7 @@ const UKR_LETTERS = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Є', 'Ж'];
 const ENG_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
 export const QuestionRendererComponent = ({ question, value, onChange, readOnly = false, subjectName }: QuestionRendererProps) => {
-    // VISIBLE DEBUGGING
-    // console.log('QuestionRenderer subjectName:', subjectName);
+
 
     const name = subjectName?.toLowerCase() || '';
     const contentCheck = question.content?.toLowerCase() || '';
@@ -46,9 +45,7 @@ export const QuestionRendererComponent = ({ question, value, onChange, readOnly 
 
         return (
             <div className="space-y-3">
-                <div style={{ padding: '4px', background: '#ffeb3b', fontSize: '10px', color: 'black', marginBottom: '8px' }}>
-                    DEBUG: Subject="{subjectName}" / English? {isEnglish ? 'YES' : 'NO'}
-                </div>
+
                 {opts.map((opt: any, idx: number) => {
                     const label = LETTERS[idx] || opt.id;
                     const isSelected = value?.answer === opt.id;
