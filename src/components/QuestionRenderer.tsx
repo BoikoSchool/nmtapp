@@ -21,10 +21,16 @@ export const QuestionRendererComponent = ({ question, value, onChange, readOnly 
     console.log('QuestionRenderer subjectName:', subjectName);
 
     const name = subjectName?.toLowerCase() || '';
+    const contentCheck = question.content?.toLowerCase() || '';
+
+    // Check subject name OR question content for English indicators
     const isEnglish = name.includes('англ') ||
         name.includes('english') ||
         name.includes('foreign') ||
-        name.includes('ийська'); // Part of 'Англійська' if encoding is weird
+        name.includes('ийська') ||
+        contentCheck.includes('(a-h)') ||
+        contentCheck.includes('match choices (a-h)') ||
+        contentCheck.includes('read the text below');
 
     const LETTERS = isEnglish ? ENG_LETTERS : UKR_LETTERS;
 
