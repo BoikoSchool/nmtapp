@@ -253,6 +253,13 @@ export const QuestionRendererComponent = ({ question, value, onChange, readOnly 
                         <div key={groupId} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm flex flex-col">
                             <div className="bg-slate-50 p-3 border-b border-slate-200">
                                 <span className="text-xs font-black text-slate-400 uppercase tracking-wider mb-1 block">Група {groupId}</span>
+                                {group.image && (
+                                    <img
+                                        src={group.image}
+                                        alt={`Group ${groupId}`}
+                                        className="w-full h-auto rounded-lg border border-slate-200 mb-2 shadow-sm"
+                                    />
+                                )}
                                 <div className="text-sm font-bold text-slate-700 leading-tight">{group.title}</div>
                             </div>
                             <div className="p-2 space-y-1 grow">
@@ -275,7 +282,16 @@ export const QuestionRendererComponent = ({ question, value, onChange, readOnly 
                                             )}>
                                                 {opt.id}
                                             </div>
-                                            <div className="text-sm font-medium leading-tight">{opt.text}</div>
+                                            <div className="flex-1">
+                                                {opt.image && (
+                                                    <img
+                                                        src={opt.image}
+                                                        alt={`Option ${opt.id}`}
+                                                        className="w-full h-auto rounded-lg border border-slate-100 mb-2"
+                                                    />
+                                                )}
+                                                <div className="text-sm font-medium leading-tight">{opt.text}</div>
+                                            </div>
                                         </button>
                                     );
                                 })}
