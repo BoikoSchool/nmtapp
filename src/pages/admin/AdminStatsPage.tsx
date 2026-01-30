@@ -144,7 +144,21 @@ export const AdminStatsPage = () => {
                 new Date(item.finished_at).toLocaleString('uk-UA'),
                 item.test_raw_score,
                 item.total_raw_score,
-                item.total_scaled_score,
+                // Find subject-specific scaled score from the blob if available?
+                // Actually, SQL query returns:
+                // test_raw_score (line 25 in SQL - raw score for THIS test)
+                // total_raw_score (line 27 - sum of all tests in session)
+                // total_scaled_score (line 28 - sum of scaled or just 200?) 
+                // Wait, users wants the SUBJECT Scaled Score (100-200).
+                // The current SQL `get_detailed_export_data` DOES NOT return the subject scaled score directly.
+                // It only computes the raw score.
+                // However, I can fetch the subject scaled score from `test_attempts.results_data`.
+                // For now, I'll modify the SQL to extract it.
+                // But first, let's look at what data we have in JS.
+                // The `data` array comes from `get_detailed_export_data`.
+
+                // Let's assume I fix the SQL first.
+                item.subject_scaled_score || 'N/A',
                 item.question_content.replace(/[\n\r]+/g, ' ').replace(/<[^>]*>/g, ''), // Strip HTML
                 item.question_type,
                 formatAnswerValue(item.question_type, item.question_options, item.student_answer),
