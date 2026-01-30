@@ -18,7 +18,8 @@ const UKR_LETTERS = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Є', 'Ж'];
 const ENG_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
 export const QuestionRendererComponent = ({ question, value, onChange, readOnly = false, subjectName }: QuestionRendererProps) => {
-    console.log('QuestionRenderer subjectName:', subjectName);
+    // VISIBLE DEBUGGING
+    // console.log('QuestionRenderer subjectName:', subjectName);
 
     const name = subjectName?.toLowerCase() || '';
     const contentCheck = question.content?.toLowerCase() || '';
@@ -34,8 +35,6 @@ export const QuestionRendererComponent = ({ question, value, onChange, readOnly 
 
     const LETTERS = isEnglish ? ENG_LETTERS : UKR_LETTERS;
 
-
-
     // 1. Single Choice
     if (question.type === 'single_choice') {
         let opts: any[] = [];
@@ -47,6 +46,9 @@ export const QuestionRendererComponent = ({ question, value, onChange, readOnly 
 
         return (
             <div className="space-y-3">
+                <div style={{ padding: '4px', background: '#ffeb3b', fontSize: '10px', color: 'black', marginBottom: '8px' }}>
+                    DEBUG: Subject="{subjectName}" / English? {isEnglish ? 'YES' : 'NO'}
+                </div>
                 {opts.map((opt: any, idx: number) => {
                     const label = LETTERS[idx] || opt.id;
                     const isSelected = value?.answer === opt.id;
@@ -383,7 +385,7 @@ export const QuestionRendererComponent = ({ question, value, onChange, readOnly 
 };
 
 export const QuestionRenderer = React.memo(QuestionRendererComponent, (prev, next) => {
-    // Custom comparison to ensure deep value equality if needed, 
+    // Custom comparison to ensure deep value equality if needed,
     // but usually shallow compare of props is enough if objects are stable.
     // 'value' changes often when typing/selecting.
     return prev.question.id === next.question.id &&
