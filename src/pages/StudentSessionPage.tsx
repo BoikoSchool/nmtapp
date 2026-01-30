@@ -33,6 +33,7 @@ const QuestionDisplay = React.memo(({
     isFinished: boolean,
     subjectName?: string
 }) => {
+    console.log('QuestionDisplay Render. Subject:', subjectName, 'QID:', question.id);
     return (
         <div className="bg-white rounded-3xl p-6 md:p-8 shadow-md border border-slate-200">
             {/* Question Content */}

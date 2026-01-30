@@ -18,7 +18,14 @@ const UKR_LETTERS = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Є', 'Ж'];
 const ENG_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
 export const QuestionRendererComponent = ({ question, value, onChange, readOnly = false, subjectName }: QuestionRendererProps) => {
-    const isEnglish = subjectName?.toLowerCase().includes('англійська') || subjectName?.toLowerCase().includes('english');
+    console.log('QuestionRenderer subjectName:', subjectName);
+
+    const name = subjectName?.toLowerCase() || '';
+    const isEnglish = name.includes('англ') ||
+        name.includes('english') ||
+        name.includes('foreign') ||
+        name.includes('ийська'); // Part of 'Англійська' if encoding is weird
+
     const LETTERS = isEnglish ? ENG_LETTERS : UKR_LETTERS;
 
 
@@ -375,5 +382,6 @@ export const QuestionRenderer = React.memo(QuestionRendererComponent, (prev, nex
     // 'value' changes often when typing/selecting.
     return prev.question.id === next.question.id &&
         prev.value === next.value &&
-        prev.readOnly === next.readOnly;
+        prev.readOnly === next.readOnly &&
+        prev.subjectName === next.subjectName;
 });
