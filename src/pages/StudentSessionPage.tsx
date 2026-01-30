@@ -446,7 +446,7 @@ export const StudentSessionPage = () => {
                             onNext={() => setCurrentQuestionIndex(prev => Math.min(activeQuestions.length - 1, prev + 1))}
                             isFirst={currentQuestionIndex === 0}
                             isLast={currentQuestionIndex === activeQuestions.length - 1}
-                            isLast={currentQuestionIndex === activeQuestions.length - 1}
+
                             isFinished={isFinished}
                             subjectName={activeTest?.subjects?.name}
                         />
