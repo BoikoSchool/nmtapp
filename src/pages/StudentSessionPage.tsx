@@ -20,7 +20,8 @@ const QuestionDisplay = React.memo(({
     onPrev,
     isFirst,
     isLast,
-    isFinished
+    isFinished,
+    subjectName
 }: {
     question: Question,
     answer: any,
@@ -29,7 +30,8 @@ const QuestionDisplay = React.memo(({
     onPrev: () => void,
     isFirst: boolean,
     isLast: boolean,
-    isFinished: boolean
+    isFinished: boolean,
+    subjectName?: string
 }) => {
     return (
         <div className="bg-white rounded-3xl p-6 md:p-8 shadow-md border border-slate-200">
@@ -48,11 +50,13 @@ const QuestionDisplay = React.memo(({
             </div>
 
             {/* Renderer */}
+
             <QuestionRenderer
                 question={question}
                 value={answer}
                 onChange={onAnswer}
                 readOnly={isFinished}
+                subjectName={subjectName}
             />
 
             {/* Navigation Buttons (Sticky Footer) */}
@@ -272,6 +276,7 @@ export const StudentSessionPage = () => {
     };
 
     // Filter questions for current active tab
+    const activeTest = tests.find(t => t.id === activeTestId);
     const activeQuestions = questions.filter((q: any) => q.test_id === activeTestId);
     const currentQuestion = activeQuestions[currentQuestionIndex];
 
@@ -439,7 +444,9 @@ export const StudentSessionPage = () => {
                             onNext={() => setCurrentQuestionIndex(prev => Math.min(activeQuestions.length - 1, prev + 1))}
                             isFirst={currentQuestionIndex === 0}
                             isLast={currentQuestionIndex === activeQuestions.length - 1}
+                            isLast={currentQuestionIndex === activeQuestions.length - 1}
                             isFinished={isFinished}
+                            subjectName={activeTest?.subjects?.name}
                         />
                     ) : (
                         <div className="text-center py-12 text-slate-400">Питань у цьому блоці немає.</div>

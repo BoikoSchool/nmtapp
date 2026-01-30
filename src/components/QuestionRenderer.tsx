@@ -11,11 +11,15 @@ interface QuestionRendererProps {
     value: any;
     onChange: (val: any) => void;
     readOnly?: boolean;
+    subjectName?: string;
 }
 
-const LETTERS = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Є', 'Ж'];
+const UKR_LETTERS = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Є', 'Ж'];
+const ENG_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
-export const QuestionRendererComponent = ({ question, value, onChange, readOnly = false }: QuestionRendererProps) => {
+export const QuestionRendererComponent = ({ question, value, onChange, readOnly = false, subjectName }: QuestionRendererProps) => {
+    const isEnglish = subjectName?.toLowerCase().includes('англійська') || subjectName?.toLowerCase().includes('english');
+    const LETTERS = isEnglish ? ENG_LETTERS : UKR_LETTERS;
 
 
 
