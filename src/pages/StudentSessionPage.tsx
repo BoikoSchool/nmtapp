@@ -97,6 +97,7 @@ export const StudentSessionPage = () => {
 
     // UI State
     const [loading, setLoading] = useState(true);
+    const [finishing, setFinishing] = useState(false);
     const [activeTestId, setActiveTestId] = useState<string | null>(null);
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
@@ -113,15 +114,21 @@ export const StudentSessionPage = () => {
                 schema: 'public',
                 table: 'test_sessions',
                 filter: `id=eq.${sessionId}`
-            }, (payload: any) => {
+            }, async (payload: any) => {
                 setSession(prev => prev ? { ...prev, ...payload.new } : payload.new as TestSession);
 
                 if (payload.new.status === 'finished') {
-                    // Finalize silently if not already finished
-                    if (attemptId) {
-                        supabase.rpc('finalize_exam_v7', { p_attempt_id: attemptId }).then(() => {
-                            loadSessionData();
-                        });
+                    // Try to find the attempt again to avoid stale closure issues
+                    const { data: attempt } = await supabase
+                        .from('test_attempts')
+                        .select('id, status')
+                        .eq('session_id', sessionId)
+                        .eq('user_id', user!.id)
+                        .single();
+
+                    if (attempt && attempt.status !== 'finished') {
+                        await supabase.rpc('finalize_exam_v7', { p_attempt_id: attempt.id });
+                        loadSessionData();
                     }
                 }
             })
@@ -172,20 +179,25 @@ export const StudentSessionPage = () => {
     };
 
     const handleFinish = async () => {
-        if (!attemptId) return;
-        if (!confirm('Ви впевнені, що хочете завершити тест?')) return;
+        if (!attemptId || finishing) return;
+
+        // Use a safer confirmation check
+        const isConfirmed = window.confirm('Ви впевнені, що хочете завершити тест?');
+        if (!isConfirmed) return;
 
         try {
-            setLoading(true);
+            setFinishing(true);
             const { error } = await supabase.rpc('finalize_exam_v7', { p_attempt_id: attemptId });
             if (error) throw error;
 
-            // Reload data to show finished state or results
+            // Wait a small bit for DB to catch up
+            await new Promise(r => setTimeout(r, 500));
             await loadSessionData();
         } catch (e: any) {
+            console.error('Finish error:', e);
             alert('Помилка при завершенні: ' + e.message);
         } finally {
-            setLoading(false);
+            setFinishing(false);
         }
     };
 
@@ -381,9 +393,16 @@ export const StudentSessionPage = () => {
 
                 <button
                     onClick={handleFinish}
-                    className="bg-red-50 text-red-500 px-4 py-2 rounded-xl font-bold text-sm hover:bg-red-100 transition-colors"
+                    disabled={finishing || !attemptId}
+                    className={cn(
+                        "px-4 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2",
+                        finishing || !attemptId
+                            ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                            : "bg-red-50 text-red-500 hover:bg-red-100 active:scale-95"
+                    )}
                 >
-                    Завершити
+                    {finishing && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {finishing ? 'Обробка...' : 'Завершити'}
                 </button>
             </header>
 
