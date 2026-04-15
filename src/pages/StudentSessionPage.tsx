@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Loader2, Pause, Clock, CheckCircle } from 'lucide-react';
+import { Loader2, Pause, Clock, CheckCircle, AlertTriangle, Play } from 'lucide-react';
 import { useAuth } from '../components/AuthProvider';
 import { cn } from '../lib/utils';
 import type { TestSession, Question, Test } from '../types/database.types';
@@ -101,6 +101,11 @@ export const StudentSessionPage = () => {
     const [activeTestId, setActiveTestId] = useState<string | null>(null);
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
+    // Anti-Cheat State
+    const [isFullscreenReady, setIsFullscreenReady] = useState(false);
+    const [cheatWarningVisible, setCheatWarningVisible] = useState(false);
+    const [cheatStrikes, setCheatStrikes] = useState<number>(0);
+
     // Timer State (Local countdown)
     const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
 
@@ -138,6 +143,66 @@ export const StudentSessionPage = () => {
             supabase.removeChannel(channel);
         };
     }, [sessionId, user]);
+
+    // Handle session status transitions (paused -> active)
+    useEffect(() => {
+        if (!session) return;
+        if (session.status === 'paused' && isFullscreenReady) {
+            setIsFullscreenReady(false);
+        }
+    }, [session?.status]);
+
+    // Handle Anti-Cheat Listeners
+    useEffect(() => {
+        if (session?.status !== 'active' || !isFullscreenReady || finishing) {
+            return;
+        }
+
+        const handleVisibilityChange = () => {
+            if (document.hidden) handleCheatAttempt('visibilitychange');
+        };
+        const handleBlur = () => {
+            handleCheatAttempt('blur');
+        };
+        const handleFullscreenChange = () => {
+            if (!document.fullscreenElement) handleCheatAttempt('fullscreenchange');
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('blur', handleBlur);
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('blur', handleBlur);
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
+        };
+    }, [session?.status, isFullscreenReady, finishing]);
+
+    const handleCheatAttempt = async (type: string) => {
+        // Prevent duplicate firing while modal is open or session is ending
+        if (finishing || cheatWarningVisible || session?.status !== 'active') return;
+
+        setCheatWarningVisible(true);
+        const newStrikes = cheatStrikes + 1;
+        setCheatStrikes(newStrikes);
+
+        if (attemptId) {
+            try {
+                await supabase.rpc('log_cheat_attempt', {
+                    p_attempt_id: attemptId,
+                    p_log_entry: { time: new Date().toISOString(), type }
+                });
+            } catch (e) {
+                console.error("Failed to log cheat attempt", e);
+            }
+        }
+
+        if (newStrikes >= 3) {
+            // Auto finish on 3rd strike
+            handleFinish(true);
+        }
+    };
 
     // Timer Effect
     useEffect(() => {
@@ -178,12 +243,13 @@ export const StudentSessionPage = () => {
         return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     };
 
-    const handleFinish = async () => {
+    const handleFinish = async (force: boolean = false) => {
         if (!attemptId || finishing) return;
 
-        // Use a safer confirmation check
-        const isConfirmed = window.confirm('Ви впевнені, що хочете завершити тест?');
-        if (!isConfirmed) return;
+        if (!force) {
+            const isConfirmed = window.confirm('Ви впевнені, що хочете завершити тест?');
+            if (!isConfirmed) return;
+        }
 
         try {
             setFinishing(true);
@@ -244,7 +310,7 @@ export const StudentSessionPage = () => {
             // 4. Fetch or Create Attempt
             let { data: attempt } = await supabase
                 .from('test_attempts')
-                .select('id')
+                .select('id, cheat_strikes')
                 .eq('session_id', sessionId)
                 .eq('user_id', user!.id)
                 .single();
@@ -254,13 +320,14 @@ export const StudentSessionPage = () => {
                 const { data: newAttempt, error: createError } = await supabase
                     .from('test_attempts')
                     .insert({ session_id: sessionId, user_id: user!.id })
-                    .select('id')
+                    .select('id, cheat_strikes')
                     .single();
                 if (createError) throw createError;
                 attempt = newAttempt;
             }
 
             setAttemptId(attempt.id);
+            if (attempt.cheat_strikes) setCheatStrikes(attempt.cheat_strikes);
 
             // 5. Fetch Existing Answers
             const { data: savedAnswers } = await supabase
@@ -378,9 +445,73 @@ export const StudentSessionPage = () => {
         );
     }
 
+    if (session.status === 'active' && !isFullscreenReady && !isFinished) {
+        const isResume = !!session.last_paused_at; 
+        
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4">
+                <div className="bg-white p-10 rounded-3xl shadow-xl text-center max-w-md w-full animate-in fade-in zoom-in duration-300">
+                    <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Play className="w-10 h-10 text-blue-500 ml-1" />
+                    </div>
+                    <h1 className="text-3xl font-extrabold text-slate-800 mb-4">
+                        {isResume ? "Сесію Відновлено" : "Все Готово"}
+                    </h1>
+                    <p className="text-slate-500 font-medium mb-8 text-lg">
+                        {isResume 
+                            ? "Адміністратор відновив тестування. Натисніть кнопку нижче, щоб повернутися в повноекранний режим і продовжити виконання."
+                            : "Ви готові розпочати тестування? Додаток перейде у повноекранний режим для дотримання академічної доброчесності."}
+                    </p>
+                    <button 
+                        onClick={() => {
+                            document.documentElement.requestFullscreen().catch(e => console.error("Fullscreen error:", e));
+                            setIsFullscreenReady(true);
+                        }}
+                        className="w-full py-4 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl text-lg shadow-lg shadow-green-200 transition-all active:scale-95"
+                    >
+                        {isResume ? 'Повернутися до виконання' : 'Почати тестування'}
+                    </button>
+                    <div className="mt-6 text-sm text-slate-400">
+                        {session.title}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     // --- ACTIVE TEST UI ---
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col">
+            {cheatWarningVisible && !isFinished && (
+                <div className="fixed inset-0 z-[9999] bg-red-600 flex flex-col items-center justify-center p-6 text-white text-center animate-in fade-in duration-200">
+                    <AlertTriangle className="w-24 h-24 mb-6 text-white animate-pulse" />
+                    <h1 className="text-4xl md:text-5xl font-extrabold uppercase mb-4 tracking-tight">Увага! Порушення правил!</h1>
+                    <p className="text-xl md:text-2xl font-medium mb-4 opacity-90 max-w-xl">
+                        Зафіксовано спробу виходу з повноекранного режиму або втрату фокусу вікна. Це вважається спробою списування.
+                    </p>
+                    <div className="text-2xl font-black bg-white/20 px-8 py-3 rounded-2xl mb-12 border border-white/30 backdrop-blur-sm">
+                        Попередження {cheatStrikes} з 3
+                    </div>
+                    
+                    {cheatStrikes < 3 ? (
+                        <button
+                            onClick={() => {
+                                document.documentElement.requestFullscreen().catch(e => console.error(e));
+                                setCheatWarningVisible(false);
+                            }}
+                            className="px-10 py-5 bg-white text-red-600 font-extrabold rounded-2xl text-xl hover:bg-red-50 hover:scale-105 transition-all active:scale-95 shadow-2xl flex items-center gap-3"
+                        >
+                            <Play className="w-6 h-6 fill-current" />
+                            Повернутися до виконання
+                        </button>
+                    ) : (
+                        <div className="px-10 py-5 bg-white text-red-600 font-extrabold rounded-2xl text-xl opacity-75 shadow-2xl">
+                            Ліміт вичерпано. Здаємо роботу...
+                        </div>
+                    )}
+                </div>
+            )}
+            
             {/* Header */}
             <header className="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center sticky top-0 z-10 shadow-sm">
                 <div className="font-extrabold text-slate-800 text-lg sm:text-xl truncate max-w-[200px]">{session.title}</div>
@@ -392,7 +523,7 @@ export const StudentSessionPage = () => {
                 </div>
 
                 <button
-                    onClick={handleFinish}
+                    onClick={() => handleFinish()}
                     disabled={finishing || !attemptId}
                     className={cn(
                         "px-4 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2",

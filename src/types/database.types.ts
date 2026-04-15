@@ -60,4 +60,6 @@ export interface TestAttempt {
     raw_score_total: number;
     scaled_score_200: number;
     results_data: Json; // Added
+    cheat_strikes?: number;
+    cheat_logs?: Json;
 }
