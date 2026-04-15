@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Loader2, Pause, Clock, CheckCircle, AlertTriangle, Play } from 'lucide-react';
@@ -104,7 +104,9 @@ export const StudentSessionPage = () => {
     // Anti-Cheat State
     const [isFullscreenReady, setIsFullscreenReady] = useState(false);
     const [cheatWarningVisible, setCheatWarningVisible] = useState(false);
+    const cheatWarningVisibleRef = useRef(false);
     const [cheatStrikes, setCheatStrikes] = useState<number>(0);
+    const cheatStrikesRef = useRef(0);
 
     // Timer State (Local countdown)
     const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
@@ -177,14 +179,17 @@ export const StudentSessionPage = () => {
             window.removeEventListener('blur', handleBlur);
             document.removeEventListener('fullscreenchange', handleFullscreenChange);
         };
-    }, [session?.status, isFullscreenReady, finishing]);
+    }, [session?.status, isFullscreenReady, finishing, attemptId]);
 
     const handleCheatAttempt = async (type: string) => {
         // Prevent duplicate firing while modal is open or session is ending
-        if (finishing || cheatWarningVisible || session?.status !== 'active') return;
+        if (finishing || cheatWarningVisibleRef.current || session?.status !== 'active') return;
 
+        cheatWarningVisibleRef.current = true;
         setCheatWarningVisible(true);
-        const newStrikes = cheatStrikes + 1;
+        
+        cheatStrikesRef.current += 1;
+        const newStrikes = cheatStrikesRef.current;
         setCheatStrikes(newStrikes);
 
         if (attemptId) {
@@ -327,7 +332,10 @@ export const StudentSessionPage = () => {
             }
 
             setAttemptId(attempt.id);
-            if (attempt.cheat_strikes) setCheatStrikes(attempt.cheat_strikes);
+            if (attempt.cheat_strikes) {
+                setCheatStrikes(attempt.cheat_strikes);
+                cheatStrikesRef.current = attempt.cheat_strikes;
+            }
 
             // 5. Fetch Existing Answers
             const { data: savedAnswers } = await supabase
@@ -498,6 +506,7 @@ export const StudentSessionPage = () => {
                             onClick={() => {
                                 document.documentElement.requestFullscreen().catch(e => console.error(e));
                                 setCheatWarningVisible(false);
+                                cheatWarningVisibleRef.current = false;
                             }}
                             className="px-10 py-5 bg-white text-red-600 font-extrabold rounded-2xl text-xl hover:bg-red-50 hover:scale-105 transition-all active:scale-95 shadow-2xl flex items-center gap-3"
                         >
