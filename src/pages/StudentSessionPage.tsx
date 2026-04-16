@@ -170,6 +170,10 @@ export const StudentSessionPage = () => {
             if (document.hidden) handleCheatAttempt('visibilitychange');
         };
         const handleBlur = () => {
+            // Ігноруємо blur на планшетах/телефонах (Option 3), щоб уникнути хибних спрацювань від жестів
+            const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+            if (isTouchDevice) return;
+
             if (Date.now() < gracePeriodEndsAtRef.current) return;
             handleCheatAttempt('blur');
         };
