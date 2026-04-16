@@ -319,7 +319,7 @@ export const StudentSessionPage = () => {
             // 2. Fetch Tests (Blocks) linked to this session
             const { data: sessionTests, error: stError } = await supabase
                 .from('session_tests')
-                .select('test_id, tests(*, subjects(name))')
+                .select('test_id, tests(*, subjects(name, reference_material_url))')
                 .eq('session_id', sessionId)
                 .order('display_order');
 
