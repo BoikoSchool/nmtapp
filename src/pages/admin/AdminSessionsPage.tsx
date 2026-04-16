@@ -17,16 +17,31 @@ export const AdminSessionsPage = () => {
     const [selectedTests, setSelectedTests] = useState<string[]>([]);
     const [creating, setCreating] = useState(false);
 
+    // Anti-Cheat Modal State
+    const [inspectingAttemptId, setInspectingAttemptId] = useState<string | null>(null);
+
     useEffect(() => {
         fetchData();
         // Timer tick
         const timerInterval = setInterval(() => setNow(new Date()), 1000);
-        // Data poll
-        const dataInterval = setInterval(fetchData, 5000);
+        // Data poll backup
+        const dataInterval = setInterval(fetchData, 15000);
+
+        // Realtime subscription for instant anti-cheat updates
+        const channel = supabase.channel('admin_attempts_updates')
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'test_attempts'
+            }, () => {
+                fetchData();
+            })
+            .subscribe();
 
         return () => {
             clearInterval(timerInterval);
             clearInterval(dataInterval);
+            supabase.removeChannel(channel);
         };
     }, []);
 
@@ -165,6 +180,30 @@ export const AdminSessionsPage = () => {
         return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     };
 
+    const translateLogEvent = (type: string) => {
+        switch(type) {
+            case 'blur': return 'Втрата фокусу вікна';
+            case 'visibilitychange': return 'Перехід на іншу вкладку або згортання';
+            case 'fullscreenchange': return 'Вихід з повного екрану';
+            default: return type;
+        }
+    };
+
+    // Calculate currently inspected attempt for the modal
+    let activeInspectedAttempt: any = null;
+    let activeInspectedSessionTitle = "";
+    if (inspectingAttemptId) {
+        sessions.forEach((s: any) => {
+            if (s.test_attempts) {
+                const attempt = s.test_attempts.find((a: any) => a.id === inspectingAttemptId);
+                if (attempt) {
+                    activeInspectedAttempt = attempt;
+                    activeInspectedSessionTitle = s.title;
+                }
+            }
+        });
+    }
+
     return (
         <div className="max-w-6xl">
             <h2 className="text-2xl font-extrabold text-slate-800 mb-6">Live Control Room</h2>
@@ -256,13 +295,27 @@ export const AdminSessionsPage = () => {
                                     <div className="space-y-2">
                                         {/* @ts-ignore */}
                                         {session.test_attempts.map((att: any) => (
-                                            <div key={att.id} className="flex justify-between items-center text-sm border-b border-slate-200 pb-2 last:border-0 last:pb-0">
-                                                <div className="flex items-center gap-2">
+                                            <div key={att.id} className="flex justify-between items-center text-sm border-b border-slate-200 py-3 last:border-0 last:pb-0">
+                                                <div className="flex items-center gap-3">
                                                     <div className={cn(
-                                                        "w-2 h-2 rounded-full",
+                                                        "w-2 h-2 rounded-full shrink-0",
                                                         att.status === 'finished' ? "bg-green-500" : "bg-yellow-500 animate-pulse"
                                                     )} />
-                                                    <span className="font-bold text-slate-700">{att.profiles?.full_name || 'Анонім'}</span>
+                                                    <span className="font-bold text-slate-700 w-32 truncate" title={att.profiles?.full_name || 'Анонім'}>
+                                                        {att.profiles?.full_name || 'Анонім'}
+                                                    </span>
+                                                    
+                                                    {/* Anti-Cheat Indicator */}
+                                                    <button 
+                                                        onClick={() => setInspectingAttemptId(att.id)}
+                                                        className="flex items-center justify-center px-2 py-1 bg-white hover:bg-slate-200 border border-slate-200 rounded-lg transition-all shadow-sm active:scale-95"
+                                                        title="Переглянути журнал порушень"
+                                                    >
+                                                        {(!att.cheat_strikes || att.cheat_strikes === 0) && <span className="text-lg leading-none">🟢</span>}
+                                                        {(att.cheat_strikes === 1 || att.cheat_strikes === 2) && <span className="text-lg leading-none animate-pulse">⚠️</span>}
+                                                        {(att.cheat_strikes >= 3) && <span className="text-lg leading-none">🛑</span>}
+                                                        {att.cheat_strikes > 0 && <span className="text-xs font-black text-slate-600 ml-1.5">{att.cheat_strikes}/3</span>}
+                                                    </button>
                                                 </div>
                                                 <div className="text-right flex items-center gap-3">
                                                     {att.results_data?.tests && (
@@ -337,6 +390,48 @@ export const AdminSessionsPage = () => {
                 ))}
                 {sessions.length === 0 && <p className="text-center text-slate-400 py-8">Немає активних сесій.</p>}
             </div>
+
+            {/* Anti-Cheat Logs Modal */}
+            {inspectingAttemptId && activeInspectedAttempt && (
+                <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setInspectingAttemptId(null)}>
+                    <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-start mb-6">
+                            <div>
+                                <h3 className="text-2xl font-extrabold text-slate-800 uppercase tracking-tight">Журнал Порушень</h3>
+                                <div className="text-sm font-bold text-slate-500 mt-2">
+                                    <span className="text-slate-800">{activeInspectedAttempt.profiles?.full_name}</span> 
+                                    <span className="text-slate-300 mx-2">•</span> 
+                                    {activeInspectedSessionTitle}
+                                </div>
+                            </div>
+                            <button onClick={() => setInspectingAttemptId(null)} className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors">
+                                ✖
+                            </button>
+                        </div>
+
+                        <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+                            {(!activeInspectedAttempt.cheat_logs || activeInspectedAttempt.cheat_logs.length === 0) ? (
+                                <div className="text-center py-12 bg-green-50 rounded-2xl border border-green-100">
+                                    <span className="text-5xl mb-4 block">🟢</span>
+                                    <h4 className="font-extrabold text-green-800 text-lg">Порушень не знайдено</h4>
+                                    <p className="text-sm text-green-600 mt-1 font-medium">Цей студент проходить тест чесно.</p>
+                                </div>
+                            ) : (
+                                activeInspectedAttempt.cheat_logs.map((log: any, i: number) => (
+                                    <div key={i} className="flex gap-4 p-4 bg-red-50 border border-red-100 rounded-xl items-center">
+                                        <div className="bg-white px-3 py-1.5 rounded-lg border border-red-200 text-red-600 font-mono font-bold text-sm shadow-sm shrink-0">
+                                            {new Date(log.time).toLocaleTimeString('uk-UA')}
+                                        </div>
+                                        <div className="font-bold text-slate-800 flex-1 leading-snug">
+                                            {translateLogEvent(log.type)}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
