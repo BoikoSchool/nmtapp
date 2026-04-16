@@ -107,6 +107,11 @@ export const StudentSessionPage = () => {
     const cheatWarningVisibleRef = useRef(false);
     const [cheatStrikes, setCheatStrikes] = useState<number>(0);
     const cheatStrikesRef = useRef(0);
+    const gracePeriodEndsAtRef = useRef(0);
+
+    const startGracePeriod = () => {
+        gracePeriodEndsAtRef.current = Date.now() + 2000; // 2 seconds leeway
+    };
 
     // Timer State (Local countdown)
     const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
@@ -161,12 +166,15 @@ export const StudentSessionPage = () => {
         }
 
         const handleVisibilityChange = () => {
+            if (Date.now() < gracePeriodEndsAtRef.current) return;
             if (document.hidden) handleCheatAttempt('visibilitychange');
         };
         const handleBlur = () => {
+            if (Date.now() < gracePeriodEndsAtRef.current) return;
             handleCheatAttempt('blur');
         };
         const handleFullscreenChange = () => {
+            if (Date.now() < gracePeriodEndsAtRef.current) return;
             if (!document.fullscreenElement) handleCheatAttempt('fullscreenchange');
         };
 
@@ -472,6 +480,7 @@ export const StudentSessionPage = () => {
                     </p>
                     <button 
                         onClick={() => {
+                            startGracePeriod();
                             document.documentElement.requestFullscreen().catch(e => console.error("Fullscreen error:", e));
                             setIsFullscreenReady(true);
                         }}
@@ -504,6 +513,7 @@ export const StudentSessionPage = () => {
                     {cheatStrikes < 3 ? (
                         <button
                             onClick={() => {
+                                startGracePeriod();
                                 document.documentElement.requestFullscreen().catch(e => console.error(e));
                                 setCheatWarningVisible(false);
                                 cheatWarningVisibleRef.current = false;
