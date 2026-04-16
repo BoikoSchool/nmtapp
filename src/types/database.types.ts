@@ -10,6 +10,7 @@ export interface Subject {
     id: string;
     name: string;
     icon_url: string | null;
+    reference_material_url?: string | null;
     created_at: string;
 }
 

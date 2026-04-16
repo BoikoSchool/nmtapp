@@ -9,7 +9,14 @@ import { QuestionRenderer } from '../components/QuestionRenderer';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import 'katex/dist/katex.min.css'; // Import CSS directly here or in App.tsx
+import 'katex/dist/katex.min.css';
+
+import { Document, Page, pdfjs } from 'react-pdf';
+import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
+import 'react-pdf/dist/esm/Page/TextLayer.css';
+import { Plus as PlusIcon, Minus as MinusIcon, X, FileText } from 'lucide-react';
+
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 // Memoized component to prevent re-rendering of Markdown on every timer tick
 const QuestionDisplay = React.memo(({
@@ -108,6 +115,15 @@ export const StudentSessionPage = () => {
     const [cheatStrikes, setCheatStrikes] = useState<number>(0);
     const cheatStrikesRef = useRef(0);
     const gracePeriodEndsAtRef = useRef(0);
+
+    // Reference Materials State
+    const [isMaterialsModalOpen, setIsMaterialsModalOpen] = useState(false);
+    const [pdfScale, setPdfScale] = useState(1.5);
+    const [numPages, setNumPages] = useState<number | null>(null);
+
+    const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
+        setNumPages(numPages);
+    };
 
     const startGracePeriod = () => {
         gracePeriodEndsAtRef.current = Date.now() + 2000; // 2 seconds leeway
@@ -565,7 +581,7 @@ export const StudentSessionPage = () => {
             </header>
 
             {/* Subject Tabs */}
-            <div className="bg-white border-b border-slate-200 px-6 overflow-x-auto">
+            <div className="bg-white border-b border-slate-200 px-6 overflow-x-auto flex justify-between items-center">
                 <div className="flex gap-6">
                     {tests.map((test: any) => (
                         <button
@@ -582,6 +598,18 @@ export const StudentSessionPage = () => {
                         </button>
                     ))}
                 </div>
+
+                {/* Reference Materials Button */}
+                {activeTest?.subjects?.reference_material_url && (
+                    <button
+                        onClick={() => setIsMaterialsModalOpen(true)}
+                        className="flex items-center gap-2 text-slate-600 font-bold hover:text-blue-600 transition-colors py-4 whitespace-nowrap"
+                    >
+                        <FileText className="w-5 h-5" />
+                        <span className="hidden sm:inline">{activeTest.subjects.name}: довідкові матеріали</span>
+                        <span className="sm:hidden">Довідкові матеріали</span>
+                    </button>
+                )}
             </div>
 
             <main className="flex-1 max-w-5xl mx-auto w-full p-4 md:p-6 grid grid-cols-1 md:grid-cols-12 gap-6">
@@ -632,6 +660,57 @@ export const StudentSessionPage = () => {
                     )}
                 </div>
             </main>
+
+            {/* Reference Materials Modal */}
+            {isMaterialsModalOpen && activeTest?.subjects?.reference_material_url && (
+                <div className="fixed inset-0 z-[5000] bg-slate-700/95 flex flex-col pt-16 animate-in fade-in duration-200">
+                    {/* Toolbar */}
+                    <div className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 px-4 md:px-8 flex justify-between items-center shadow-md z-[5010]">
+                        <div className="font-extrabold text-slate-800 text-lg md:text-xl uppercase flex items-center gap-3">
+                            <FileText className="w-6 h-6 text-blue-500 hidden sm:block" /> 
+                            Довідкові матеріали
+                        </div>
+                        <div className="flex items-center gap-4 md:gap-6">
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] md:text-xs font-bold text-slate-400 uppercase mr-1 hidden sm:block">Масштаб:</span>
+                                <button onClick={() => setPdfScale(s => Math.min(s + 0.25, 3))} className="w-10 h-10 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg flex items-center justify-center font-bold text-xl active:scale-95 transition-all"> <PlusIcon className="w-5 h-5"/> </button>
+                                <button onClick={() => setPdfScale(s => Math.max(s - 0.25, 0.5))} className="w-10 h-10 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg flex items-center justify-center font-bold text-xl active:scale-95 transition-all"> <MinusIcon className="w-5 h-5"/> </button>
+                            </div>
+                            <button onClick={() => setIsMaterialsModalOpen(false)} className="px-4 md:px-6 py-2 md:py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-2 text-sm md:text-base">
+                                <span className="hidden sm:inline">Повернутися до тесту</span>
+                                <span className="sm:hidden">Закрити</span>
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                    </div>
+                    {/* PDF Container */}
+                    <div className="flex-1 overflow-y-auto w-full flex flex-col items-center py-6 md:py-10">
+                        <Document
+                            file={activeTest.subjects.reference_material_url}
+                            onLoadSuccess={onDocumentLoadSuccess}
+                            loading={
+                                <div className="text-white font-bold animate-pulse text-xl md:text-2xl mt-32 flex flex-col items-center gap-4">
+                                    <Loader2 className="animate-spin w-12 h-12"/> 
+                                    Завантаження матеріалу...
+                                </div>
+                            }
+                            error={<div className="text-white font-bold text-xl mt-32 bg-red-500 px-6 py-4 rounded-2xl shadow-2xl">Помилка завантаження PDF. Зверніться до інструктора.</div>}
+                        >
+                            {Array.from(new Array(numPages || 0), (_, index) => (
+                                <div key={`page_${index + 1}`} className="mb-8 shadow-2xl rounded-sm overflow-hidden border border-slate-400 bg-white min-w-[300px]">
+                                    <Page
+                                        pageNumber={index + 1}
+                                        scale={pdfScale}
+                                        renderTextLayer={false}
+                                        renderAnnotationLayer={false}
+                                        loading={<div className="h-[600px] w-full flex items-center justify-center bg-slate-100"><Loader2 className="w-8 h-8 text-slate-400 animate-spin" /></div>}
+                                    />
+                                </div>
+                            ))}
+                        </Document>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
