@@ -178,6 +178,10 @@ export const StudentSessionPage = () => {
             handleCheatAttempt('blur');
         };
         const handleFullscreenChange = () => {
+            // Ігноруємо fullscreenchange на планшетах/телефонах, бо скрол Safari часто викликає мікро-вихід
+            const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+            if (isTouchDevice) return;
+
             if (Date.now() < gracePeriodEndsAtRef.current) return;
             if (!document.fullscreenElement) handleCheatAttempt('fullscreenchange');
         };
