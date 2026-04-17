@@ -115,6 +115,7 @@ export const StudentSessionPage = () => {
     const [cheatStrikes, setCheatStrikes] = useState<number>(0);
     const cheatStrikesRef = useRef(0);
     const gracePeriodEndsAtRef = useRef(0);
+    const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Reference Materials State
     const [isMaterialsModalOpen, setIsMaterialsModalOpen] = useState(false);
@@ -186,12 +187,25 @@ export const StudentSessionPage = () => {
             if (document.hidden) handleCheatAttempt('visibilitychange');
         };
         const handleBlur = () => {
-            // Ігноруємо blur на планшетах/телефонах (Option 3), щоб уникнути хибних спрацювань від жестів
-            const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-            if (isTouchDevice) return;
-
             if (Date.now() < gracePeriodEndsAtRef.current) return;
-            handleCheatAttempt('blur');
+
+            const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+            if (isTouchDevice) {
+                // Таймер пробачення на 3 секунди для планшетів (захист від Split View)
+                if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
+                blurTimeoutRef.current = setTimeout(() => {
+                    handleCheatAttempt('blur');
+                }, 3000);
+            } else {
+                handleCheatAttempt('blur');
+            }
+        };
+        const handleFocus = () => {
+            // Скидання таймеру пробачення, якщо фокус повернувся швидко
+            if (blurTimeoutRef.current) {
+                clearTimeout(blurTimeoutRef.current);
+                blurTimeoutRef.current = null;
+            }
         };
         const handleFullscreenChange = () => {
             // Ігноруємо fullscreenchange на планшетах/телефонах, бо скрол Safari часто викликає мікро-вихід
@@ -204,12 +218,15 @@ export const StudentSessionPage = () => {
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
         window.addEventListener('blur', handleBlur);
+        window.addEventListener('focus', handleFocus);
         document.addEventListener('fullscreenchange', handleFullscreenChange);
 
         return () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('blur', handleBlur);
+            window.removeEventListener('focus', handleFocus);
             document.removeEventListener('fullscreenchange', handleFullscreenChange);
+            if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
         };
     }, [session?.status, isFullscreenReady, finishing, attemptId]);
 
