@@ -117,6 +117,12 @@ export const StudentSessionPage = () => {
     const gracePeriodEndsAtRef = useRef(0);
     const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    // Debug State
+    const [debugLogs, setDebugLogs] = useState<string[]>([]);
+    const addLog = (msg: string) => {
+        setDebugLogs(prev => [...prev, `${new Date().toLocaleTimeString('uk-UA', { hour12: false })}: ${msg}`].slice(-8));
+    };
+
     // Reference Materials State
     const [isMaterialsModalOpen, setIsMaterialsModalOpen] = useState(false);
     const [pdfScale, setPdfScale] = useState(1.5);
@@ -183,17 +189,19 @@ export const StudentSessionPage = () => {
         }
 
         const handleVisibilityChange = () => {
+            addLog(`VISIBILITY: ${document.visibilityState}`);
             if (Date.now() < gracePeriodEndsAtRef.current) return;
             if (document.hidden) handleCheatAttempt('visibilitychange');
         };
         const handleBlur = () => {
+            addLog('BLUR fired');
             if (Date.now() < gracePeriodEndsAtRef.current) return;
 
             const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
             if (isTouchDevice) {
-                // Таймер пробачення на 3 секунди для планшетів (захист від Split View)
                 if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
                 blurTimeoutRef.current = setTimeout(() => {
+                    addLog('BLUR TIMEOUT 3s reached');
                     handleCheatAttempt('blur');
                 }, 3000);
             } else {
@@ -201,31 +209,37 @@ export const StudentSessionPage = () => {
             }
         };
         const handleFocus = () => {
-            // Скидання таймеру пробачення, якщо фокус повернувся швидко
+            addLog('FOCUS fired');
             if (blurTimeoutRef.current) {
                 clearTimeout(blurTimeoutRef.current);
                 blurTimeoutRef.current = null;
+                addLog('BLUR TIMEOUT cleared');
             }
         };
         const handleFullscreenChange = () => {
-            // Ігноруємо fullscreenchange на планшетах/телефонах, бо скрол Safari часто викликає мікро-вихід
+            addLog(`FULLSCREEN: ${document.fullscreenElement ? 'IN' : 'OUT'}`);
             const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
             if (isTouchDevice) return;
 
             if (Date.now() < gracePeriodEndsAtRef.current) return;
             if (!document.fullscreenElement) handleCheatAttempt('fullscreenchange');
         };
+        const handleResize = () => {
+            addLog(`RESIZE: ${window.innerWidth}x${window.innerHeight}`);
+        };
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
         window.addEventListener('blur', handleBlur);
         window.addEventListener('focus', handleFocus);
         document.addEventListener('fullscreenchange', handleFullscreenChange);
+        window.addEventListener('resize', handleResize);
 
         return () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('blur', handleBlur);
             window.removeEventListener('focus', handleFocus);
             document.removeEventListener('fullscreenchange', handleFullscreenChange);
+            window.removeEventListener('resize', handleResize);
             if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
         };
     }, [session?.status, isFullscreenReady, finishing, attemptId]);
@@ -728,6 +742,18 @@ export const StudentSessionPage = () => {
                     </div>
                 </div>
             )}
+
+            {/* iPad Diagnostics Panel */}
+            <div className="fixed bottom-4 right-4 bg-slate-900/90 text-green-400 p-4 rounded-xl z-[99999] w-64 shadow-2xl font-mono text-[10px] pointer-events-none border border-slate-700/50 backdrop-blur-md">
+                <div className="font-bold text-white mb-2 border-b border-slate-700 pb-2 uppercase tracking-wider flex items-center justify-between">
+                    <span>Системні події</span>
+                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                </div>
+                <div className="flex flex-col gap-1">
+                    {debugLogs.length === 0 ? <span className="text-slate-500">Очікування дій...</span> : null}
+                    {debugLogs.map((log, i) => <div key={i} className="break-words">{log}</div>)}
+                </div>
+            </div>
         </div>
     );
 };
