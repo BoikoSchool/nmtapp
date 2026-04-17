@@ -117,9 +117,13 @@ export const StudentSessionPage = () => {
     const gracePeriodEndsAtRef = useRef(0);
     const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    // Змінна для визначення мобільних/планшетів (використовується для оптимізації PDF та античиту)
+    const isTouchDevice = typeof window !== 'undefined' && (('ontouchstart' in window) || (navigator.maxTouchPoints > 0));
+
     // Reference Materials State
     const [isMaterialsModalOpen, setIsMaterialsModalOpen] = useState(false);
-    const [pdfScale, setPdfScale] = useState(1.5);
+    // Для планшетів початковий масштаб менший, щоб не перевантажувати пам'ять
+    const [pdfScale, setPdfScale] = useState(isTouchDevice ? 1.1 : 1.5);
     const [numPages, setNumPages] = useState<number | null>(null);
 
     const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
@@ -731,6 +735,9 @@ export const StudentSessionPage = () => {
                                         scale={pdfScale}
                                         renderTextLayer={false}
                                         renderAnnotationLayer={false}
+                                        renderInteractiveForms={false}
+                                        // Критично для iPad: примусово зменшуємо щільність пікселів для Canvas
+                                        devicePixelRatio={isTouchDevice ? 1 : undefined}
                                         loading={<div className="h-[600px] w-full flex items-center justify-center bg-slate-100"><Loader2 className="w-8 h-8 text-slate-400 animate-spin" /></div>}
                                     />
                                 </div>
