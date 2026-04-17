@@ -18,6 +18,38 @@ import { Plus as PlusIcon, Minus as MinusIcon, X, FileText } from 'lucide-react'
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
+// --- Error Boundary to catch white-screen crashes ---
+class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: Error | null}> {
+    constructor(props: any) {
+        super(props);
+        this.state = { hasError: false, error: null };
+    }
+    static getDerivedStateFromError(error: Error) {
+        return { hasError: true, error };
+    }
+    componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+        console.error("React Crash Caught:", error, errorInfo);
+    }
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="p-6 bg-red-100 text-red-900 rounded-xl m-4 border-2 border-red-500 shadow-2xl overflow-auto z-[99999] max-w-2xl mx-auto mt-20">
+                    <h2 className="text-2xl font-black mb-4 uppercase">Критична Помилка (React Crash)</h2>
+                    <p className="font-bold mb-4">Зробіть скріншот цього вікна та надішліть розробнику:</p>
+                    <div className="bg-white p-4 rounded border text-xs font-mono whitespace-pre-wrap break-all text-slate-800">
+                        {this.state.error?.toString()}
+                    </div>
+                    <div className="bg-slate-900 text-green-400 p-4 rounded border mt-2 text-[10px] font-mono whitespace-pre-wrap break-all h-48 overflow-y-auto">
+                        {this.state.error?.stack}
+                    </div>
+                    <button onClick={() => this.setState({hasError: false, error: null})} className="mt-6 w-full py-3 bg-red-600 text-white rounded-xl font-bold shadow-md">Спробувати перезавантажити блок</button>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
+
 // Memoized component to prevent re-rendering of Markdown on every timer tick
 const QuestionDisplay = React.memo(({
     question,
@@ -717,32 +749,34 @@ export const StudentSessionPage = () => {
                     </div>
                     {/* PDF Container */}
                     <div className="flex-1 overflow-y-auto w-full flex flex-col items-center py-6 md:py-10">
-                        <Document
-                            file={activeTest.subjects.reference_material_url}
-                            onLoadSuccess={onDocumentLoadSuccess}
-                            loading={
-                                <div className="text-white font-bold animate-pulse text-xl md:text-2xl mt-32 flex flex-col items-center gap-4">
-                                    <Loader2 className="animate-spin w-12 h-12"/> 
-                                    Завантаження матеріалу...
-                                </div>
-                            }
-                            error={<div className="text-white font-bold text-xl mt-32 bg-red-500 px-6 py-4 rounded-2xl shadow-2xl">Помилка завантаження PDF. Зверніться до інструктора.</div>}
-                        >
-                            {Array.from(new Array(numPages || 0), (_, index) => (
-                                <div key={`page_${index + 1}`} className="mb-8 shadow-2xl rounded-sm overflow-hidden border border-slate-400 bg-white min-w-[300px]">
-                                    <Page
-                                        pageNumber={index + 1}
-                                        scale={pdfScale}
-                                        renderTextLayer={false}
-                                        renderAnnotationLayer={false}
-                                        renderInteractiveForms={false}
-                                        // Критично для iPad: примусово зменшуємо щільність пікселів для Canvas
-                                        devicePixelRatio={isTouchDevice ? 1 : undefined}
-                                        loading={<div className="h-[600px] w-full flex items-center justify-center bg-slate-100"><Loader2 className="w-8 h-8 text-slate-400 animate-spin" /></div>}
-                                    />
-                                </div>
-                            ))}
-                        </Document>
+                        <ErrorBoundary>
+                            <Document
+                                file={activeTest.subjects.reference_material_url}
+                                onLoadSuccess={onDocumentLoadSuccess}
+                                loading={
+                                    <div className="text-white font-bold animate-pulse text-xl md:text-2xl mt-32 flex flex-col items-center gap-4">
+                                        <Loader2 className="animate-spin w-12 h-12"/> 
+                                        Завантаження матеріалу...
+                                    </div>
+                                }
+                                error={<div className="text-white font-bold text-xl mt-32 bg-red-500 px-6 py-4 rounded-2xl shadow-2xl">Помилка завантаження PDF. Зверніться до інструктора.</div>}
+                            >
+                                {Array.from(new Array(numPages || 0), (_, index) => (
+                                    <div key={`page_${index + 1}`} className="mb-8 shadow-2xl rounded-sm overflow-hidden border border-slate-400 bg-white min-w-[300px]">
+                                        <Page
+                                            pageNumber={index + 1}
+                                            scale={pdfScale}
+                                            renderTextLayer={false}
+                                            renderAnnotationLayer={false}
+                                            renderInteractiveForms={false}
+                                            // Критично для iPad: примусово зменшуємо щільність пікселів для Canvas
+                                            devicePixelRatio={isTouchDevice ? 1 : undefined}
+                                            loading={<div className="h-[600px] w-full flex items-center justify-center bg-slate-100"><Loader2 className="w-8 h-8 text-slate-400 animate-spin" /></div>}
+                                        />
+                                    </div>
+                                ))}
+                            </Document>
+                        </ErrorBoundary>
                     </div>
                 </div>
             )}
