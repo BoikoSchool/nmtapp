@@ -768,7 +768,6 @@ export const StudentSessionPage = () => {
                                             scale={pdfScale}
                                             renderTextLayer={false}
                                             renderAnnotationLayer={false}
-                                            renderInteractiveForms={false}
                                             // Критично для iPad: примусово зменшуємо щільність пікселів для Canvas
                                             devicePixelRatio={isTouchDevice ? 1 : undefined}
                                             loading={<div className="h-[600px] w-full flex items-center justify-center bg-slate-100"><Loader2 className="w-8 h-8 text-slate-400 animate-spin" /></div>}
