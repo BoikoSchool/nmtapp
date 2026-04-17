@@ -263,6 +263,12 @@ export const StudentSessionPage = () => {
             const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
             if (!isTouchDevice) return;
 
+            // Захист від хибного спрацювання при Pinch-to-zoom (наближенні пальцями).
+            // При зумі Safari зменшує innerWidth, але visualViewport.scale стає > 1.
+            if (window.visualViewport && window.visualViewport.scale > 1.05) {
+                return;
+            }
+
             // Якщо ширина вікна менша за ширину і висоту екрана, це Split View (розділений екран)
             const isSplitView = window.innerWidth < window.screen.width - 50 && window.innerWidth < window.screen.height - 50;
             
