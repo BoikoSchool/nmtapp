@@ -16,6 +16,17 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { Plus as PlusIcon, Minus as MinusIcon, X, FileText } from 'lucide-react';
 
+// Поліфіл для старих iPad (iOS 14 та нижче), де немає методу URL.parse
+if (typeof window !== 'undefined' && typeof window.URL !== 'undefined' && !('parse' in window.URL)) {
+    (window.URL as any).parse = function(url: string, base?: string) {
+        try {
+            return new URL(url, base);
+        } catch (e) {
+            return null;
+        }
+    };
+}
+
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 // --- Error Boundary to catch white-screen crashes ---
