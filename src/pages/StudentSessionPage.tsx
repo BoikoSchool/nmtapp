@@ -117,12 +117,6 @@ export const StudentSessionPage = () => {
     const gracePeriodEndsAtRef = useRef(0);
     const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // Debug State
-    const [debugLogs, setDebugLogs] = useState<string[]>([]);
-    const addLog = (msg: string) => {
-        setDebugLogs(prev => [...prev, `${new Date().toLocaleTimeString('uk-UA', { hour12: false })}: ${msg}`].slice(-8));
-    };
-
     // Reference Materials State
     const [isMaterialsModalOpen, setIsMaterialsModalOpen] = useState(false);
     const [pdfScale, setPdfScale] = useState(1.5);
@@ -189,19 +183,16 @@ export const StudentSessionPage = () => {
         }
 
         const handleVisibilityChange = () => {
-            addLog(`VISIBILITY: ${document.visibilityState}`);
             if (Date.now() < gracePeriodEndsAtRef.current) return;
             if (document.hidden) handleCheatAttempt('visibilitychange');
         };
         const handleBlur = () => {
-            addLog('BLUR fired');
             if (Date.now() < gracePeriodEndsAtRef.current) return;
 
             const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
             if (isTouchDevice) {
                 if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
                 blurTimeoutRef.current = setTimeout(() => {
-                    addLog('BLUR TIMEOUT 3s reached');
                     handleCheatAttempt('blur');
                 }, 3000);
             } else {
@@ -209,15 +200,12 @@ export const StudentSessionPage = () => {
             }
         };
         const handleFocus = () => {
-            addLog('FOCUS fired');
             if (blurTimeoutRef.current) {
                 clearTimeout(blurTimeoutRef.current);
                 blurTimeoutRef.current = null;
-                addLog('BLUR TIMEOUT cleared');
             }
         };
         const handleFullscreenChange = () => {
-            addLog(`FULLSCREEN: ${document.fullscreenElement ? 'IN' : 'OUT'}`);
             const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
             if (isTouchDevice) return;
 
@@ -225,7 +213,16 @@ export const StudentSessionPage = () => {
             if (!document.fullscreenElement) handleCheatAttempt('fullscreenchange');
         };
         const handleResize = () => {
-            addLog(`RESIZE: ${window.innerWidth}x${window.innerHeight}`);
+            const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+            if (!isTouchDevice) return;
+
+            // Якщо ширина вікна менша за ширину і висоту екрана, це Split View (розділений екран)
+            const isSplitView = window.innerWidth < window.screen.width - 50 && window.innerWidth < window.screen.height - 50;
+            
+            if (isSplitView) {
+                if (Date.now() < gracePeriodEndsAtRef.current) return;
+                handleCheatAttempt('split_view');
+            }
         };
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -742,18 +739,6 @@ export const StudentSessionPage = () => {
                     </div>
                 </div>
             )}
-
-            {/* iPad Diagnostics Panel */}
-            <div className="fixed bottom-4 right-4 bg-slate-900/90 text-green-400 p-4 rounded-xl z-[99999] w-64 shadow-2xl font-mono text-[10px] pointer-events-none border border-slate-700/50 backdrop-blur-md">
-                <div className="font-bold text-white mb-2 border-b border-slate-700 pb-2 uppercase tracking-wider flex items-center justify-between">
-                    <span>Системні події</span>
-                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                </div>
-                <div className="flex flex-col gap-1">
-                    {debugLogs.length === 0 ? <span className="text-slate-500">Очікування дій...</span> : null}
-                    {debugLogs.map((log, i) => <div key={i} className="break-words">{log}</div>)}
-                </div>
-            </div>
         </div>
     );
 };
