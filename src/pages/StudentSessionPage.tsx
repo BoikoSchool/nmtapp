@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate, useBlocker } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Loader2, Pause, Clock, CheckCircle, AlertTriangle, Play } from 'lucide-react';
 import { useAuth } from '../components/AuthProvider';
@@ -489,22 +489,22 @@ export const StudentSessionPage = () => {
     const isTestingActive = session?.status === 'active' && !isFinished;
 
     // --- PROTECTIONS ---
-    // 1. Блокування внутрішньої навігації (React Router)
-    const blocker = useBlocker(
-        ({ currentLocation, nextLocation }) =>
-            isTestingActive && currentLocation.pathname !== nextLocation.pathname
-    );
-
+    // 1. Блокування кнопки "Назад" у браузері (popstate)
     useEffect(() => {
-        if (blocker.state === 'blocked') {
-            const confirmLeave = window.confirm("Ви намагаєтеся покинути сторінку під час активного тесту. Це порушення правил. Залишити сторінку?");
-            if (confirmLeave) {
-                blocker.proceed();
-            } else {
-                blocker.reset();
-            }
-        }
-    }, [blocker]);
+        if (!isTestingActive) return;
+
+        // Додаємо "фіктивний" запис у історію браузера, щоб перехопити кнопку "Назад"
+        window.history.pushState({ testLock: true }, '');
+
+        const handlePopState = () => {
+            // Студент натиснув "Назад" — повертаємо його на місце
+            window.history.pushState({ testLock: true }, '');
+            alert('Ви не можете покинути сторінку під час активного тесту!');
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, [isTestingActive]);
 
     // 2. Блокування закриття/оновлення сторінки
     useEffect(() => {
