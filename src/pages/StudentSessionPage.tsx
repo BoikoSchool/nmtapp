@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Loader2, Pause, Clock, CheckCircle, AlertTriangle, Play } from 'lucide-react';
 import { useAuth } from '../components/AuthProvider';
@@ -482,13 +482,63 @@ export const StudentSessionPage = () => {
     const activeQuestions = questions.filter((q: any) => q.test_id === activeTestId);
     const currentQuestion = activeQuestions[currentQuestionIndex];
 
-    if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin w-10 h-10 text-green-500" /></div>;
-    if (!session) return null;
-
     // --- STATES ---
     // @ts-ignore
-    const myAttempt = session.test_attempts?.[0];
-    const isFinished = session.status === 'finished' || myAttempt?.status === 'finished';
+    const myAttempt = session?.test_attempts?.[0];
+    const isFinished = session?.status === 'finished' || myAttempt?.status === 'finished';
+    const isTestingActive = session?.status === 'active' && !isFinished;
+
+    // --- PROTECTIONS ---
+    // 1. Блокування внутрішньої навігації (React Router)
+    const blocker = useBlocker(
+        ({ currentLocation, nextLocation }) =>
+            isTestingActive && currentLocation.pathname !== nextLocation.pathname
+    );
+
+    useEffect(() => {
+        if (blocker.state === 'blocked') {
+            const confirmLeave = window.confirm("Ви намагаєтеся покинути сторінку під час активного тесту. Це порушення правил. Залишити сторінку?");
+            if (confirmLeave) {
+                blocker.proceed();
+            } else {
+                blocker.reset();
+            }
+        }
+    }, [blocker]);
+
+    // 2. Блокування закриття/оновлення сторінки
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (isTestingActive) {
+                e.preventDefault();
+                e.returnValue = "Ви намагаєтеся покинути сторінку під час активного тесту!";
+                return e.returnValue;
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [isTestingActive]);
+
+    // 3. "Передсмертний" Страйк (Unmount)
+    const activeRef = useRef(false);
+    activeRef.current = isTestingActive;
+    const attemptRef = useRef<string | null>(null);
+    attemptRef.current = attemptId;
+
+    useEffect(() => {
+        return () => {
+            if (activeRef.current && attemptRef.current) {
+                // Компонент вивантажується, а тест ще активний!
+                supabase.rpc('log_cheat_attempt', {
+                    p_attempt_id: attemptRef.current,
+                    p_log_entry: { time: new Date().toISOString(), type: 'page_exit' }
+                }).catch(e => console.error("Exit strike failed:", e));
+            }
+        };
+    }, []);
+
+    if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin w-10 h-10 text-green-500" /></div>;
+    if (!session) return null;
 
     if (session.status === 'waiting') {
         return (

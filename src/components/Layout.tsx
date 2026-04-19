@@ -1,15 +1,26 @@
-import { Link, Outlet, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 import { LogOut, Shield } from 'lucide-react';
 
 export const Layout = () => {
     const { user, signOut, isAdmin } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
+    
+    const isSessionPage = location.pathname.startsWith('/session/');
 
     const handleSignOut = async () => {
         await signOut();
         navigate('/login');
     };
+
+    if (isSessionPage) {
+        return (
+            <div className="font-sans text-slate-900">
+                <Outlet />
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
