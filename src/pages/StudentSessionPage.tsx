@@ -532,7 +532,9 @@ export const StudentSessionPage = () => {
                 supabase.rpc('log_cheat_attempt', {
                     p_attempt_id: attemptRef.current,
                     p_log_entry: { time: new Date().toISOString(), type: 'page_exit' }
-                }).catch(e => console.error("Exit strike failed:", e));
+                }).then(({ error }) => {
+                    if (error) console.error("Exit strike failed:", error);
+                });
             }
         };
     }, []);
