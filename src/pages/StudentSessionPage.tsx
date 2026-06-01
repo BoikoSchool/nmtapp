@@ -145,6 +145,11 @@ export const StudentSessionPage = () => {
     const [answers, setAnswers] = useState<Record<string, any>>({});
     const [attemptId, setAttemptId] = useState<string | null>(null);
 
+    // --- Збереження відповідей (True Debounce & Queue) ---
+    const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const pendingSavesRef = useRef<Promise<any>[]>([]);
+    const unsavedAnswersRef = useRef<Record<string, any>>({});
+
     // UI State
     const [loading, setLoading] = useState(true);
     const [finishing, setFinishing] = useState(false);
@@ -360,9 +365,11 @@ export const StudentSessionPage = () => {
             if (remaining <= 0 && session.status === 'active') {
                 // Auto-finalize on timeout
                 if (attemptId) {
-                    supabase.rpc('finalize_exam_v7', { p_attempt_id: attemptId }).then(() => {
-                        localStorage.removeItem(`nmt_trap_${attemptId}`);
-                        loadSessionData();
+                    flushSaves().then(() => {
+                        supabase.rpc('finalize_exam_v7', { p_attempt_id: attemptId }).then(() => {
+                            localStorage.removeItem(`nmt_trap_${attemptId}`);
+                            loadSessionData();
+                        });
                     });
                 }
             }
@@ -393,6 +400,15 @@ export const StudentSessionPage = () => {
 
         try {
             setFinishing(true);
+
+            // 1. Примусово зберігаємо все, що зависло в локальній черзі
+            await flushSaves();
+            
+            // 2. Чекаємо, поки всі мережеві запити на збереження завершаться
+            if (pendingSavesRef.current.length > 0) {
+                await Promise.allSettled(pendingSavesRef.current);
+            }
+
             const { error } = await supabase.rpc('finalize_exam_v7', { p_attempt_id: attemptId });
             if (error) throw error;
 
@@ -522,14 +538,49 @@ export const StudentSessionPage = () => {
         }
     };
 
-    const saveAnswerDebounced = async (qId: string, val: any) => {
+    const flushSaves = async () => {
+        const answersToSave = { ...unsavedAnswersRef.current };
+        if (Object.keys(answersToSave).length === 0) return;
+        
+        unsavedAnswersRef.current = {}; // Очищаємо чергу
+        if (debounceTimeoutRef.current) {
+            clearTimeout(debounceTimeoutRef.current);
+            debounceTimeoutRef.current = null;
+        }
+
+        const promises = Object.entries(answersToSave).map(([qId, val]) => 
+            supabase.from('student_answers').upsert({
+                attempt_id: attemptId!,
+                question_id: qId,
+                answer_data: val
+            })
+        );
+        
+        const allPromises = Promise.all(promises);
+        pendingSavesRef.current.push(allPromises);
+        
+        try {
+            await allPromises;
+        } catch (e) {
+            console.error("Save error:", e);
+        } finally {
+            pendingSavesRef.current = pendingSavesRef.current.filter(p => p !== allPromises);
+        }
+    };
+
+    const saveAnswerDebounced = (qId: string, val: any) => {
         if (!attemptId || isFinished) return;
-        // Upsert answer
-        await supabase.from('student_answers').upsert({
-            attempt_id: attemptId,
-            question_id: qId,
-            answer_data: val
-        });
+        
+        // 1. Зберігаємо в локальну чергу
+        unsavedAnswersRef.current[qId] = val;
+        
+        // 2. Скидаємо попередній таймер (якщо учень продовжує друкувати)
+        if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
+        
+        // 3. Заводимо новий таймер на 1 секунду
+        debounceTimeoutRef.current = setTimeout(() => {
+            flushSaves();
+        }, 1000);
     };
 
     // Filter questions for current active tab
