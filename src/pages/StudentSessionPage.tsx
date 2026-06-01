@@ -490,6 +490,14 @@ export const StudentSessionPage = () => {
                     if (updatedAttempt) {
                         setCheatStrikes(updatedAttempt.cheat_strikes);
                         cheatStrikesRef.current = updatedAttempt.cheat_strikes;
+                        
+                        // Показуємо попередження
+                        setCheatWarningVisible(true);
+                        cheatWarningVisibleRef.current = true;
+
+                        if (updatedAttempt.cheat_strikes >= 3) {
+                            handleFinish(true);
+                        }
                     }
                 } else {
                     // Ставимо капкан при першому вході
