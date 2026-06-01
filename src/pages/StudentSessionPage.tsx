@@ -204,6 +204,7 @@ export const StudentSessionPage = () => {
 
                     if (attempt && attempt.status !== 'finished') {
                         await supabase.rpc('finalize_exam_v7', { p_attempt_id: attempt.id });
+                        localStorage.removeItem(`nmt_trap_${attempt.id}`);
                         loadSessionData();
                     }
                 }
@@ -278,6 +279,25 @@ export const StudentSessionPage = () => {
             }
         };
 
+        // --- СЕКУНДНИЙ РАДАР ФОКУСУ (Focus Polling) ---
+        // Спеціально для iPad Slide Over, який не завжди викликає подію 'blur'
+        let blurStartTime = 0;
+        const focusCheckInterval = setInterval(() => {
+            if (Date.now() < gracePeriodEndsAtRef.current) return;
+            
+            // Якщо браузер втратив фокус (користувач працює в іншому додатку поверх)
+            if (!document.hasFocus()) {
+                if (blurStartTime === 0) {
+                    blurStartTime = Date.now();
+                } else if (Date.now() - blurStartTime > 3000) {
+                    handleCheatAttempt('slide_over');
+                }
+            } else {
+                // Фокус повернувся (або нікуди не зникав)
+                blurStartTime = 0;
+            }
+        }, 1000);
+
         document.addEventListener('visibilitychange', handleVisibilityChange);
         window.addEventListener('blur', handleBlur);
         window.addEventListener('focus', handleFocus);
@@ -291,6 +311,7 @@ export const StudentSessionPage = () => {
             document.removeEventListener('fullscreenchange', handleFullscreenChange);
             window.removeEventListener('resize', handleResize);
             if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
+            clearInterval(focusCheckInterval);
         };
     }, [session?.status, isFullscreenReady, finishing, attemptId]);
 
@@ -340,6 +361,7 @@ export const StudentSessionPage = () => {
                 // Auto-finalize on timeout
                 if (attemptId) {
                     supabase.rpc('finalize_exam_v7', { p_attempt_id: attemptId }).then(() => {
+                        localStorage.removeItem(`nmt_trap_${attemptId}`);
                         loadSessionData();
                     });
                 }
@@ -373,6 +395,8 @@ export const StudentSessionPage = () => {
             setFinishing(true);
             const { error } = await supabase.rpc('finalize_exam_v7', { p_attempt_id: attemptId });
             if (error) throw error;
+
+            localStorage.removeItem(`nmt_trap_${attemptId}`);
 
             // Wait a small bit for DB to catch up
             await new Promise(r => setTimeout(r, 500));
@@ -428,7 +452,7 @@ export const StudentSessionPage = () => {
             // 4. Fetch or Create Attempt
             let { data: attempt } = await supabase
                 .from('test_attempts')
-                .select('id, cheat_strikes')
+                .select('id, cheat_strikes, status')
                 .eq('session_id', sessionId)
                 .eq('user_id', user!.id)
                 .single();
@@ -438,7 +462,7 @@ export const StudentSessionPage = () => {
                 const { data: newAttempt, error: createError } = await supabase
                     .from('test_attempts')
                     .insert({ session_id: sessionId, user_id: user!.id })
-                    .select('id, cheat_strikes')
+                    .select('id, cheat_strikes, status')
                     .single();
                 if (createError) throw createError;
                 attempt = newAttempt;
@@ -448,6 +472,29 @@ export const StudentSessionPage = () => {
             if (attempt.cheat_strikes) {
                 setCheatStrikes(attempt.cheat_strikes);
                 cheatStrikesRef.current = attempt.cheat_strikes;
+            }
+
+            // --- ТАЄМНИЙ КАПКАН (Local Storage Trap) ---
+            if (attempt.status === 'active' || attempt.status === 'in_progress') {
+                const trapKey = `nmt_trap_${attempt.id}`;
+                const trapExists = localStorage.getItem(trapKey);
+                
+                if (trapExists) {
+                    // Користувач повернувся після закриття сторінки
+                    await supabase.rpc('log_cheat_attempt', {
+                        p_attempt_id: attempt.id,
+                        p_log_entry: { time: new Date().toISOString(), type: 'illegal_exit' }
+                    });
+                    
+                    const { data: updatedAttempt } = await supabase.from('test_attempts').select('cheat_strikes').eq('id', attempt.id).single();
+                    if (updatedAttempt) {
+                        setCheatStrikes(updatedAttempt.cheat_strikes);
+                        cheatStrikesRef.current = updatedAttempt.cheat_strikes;
+                    }
+                } else {
+                    // Ставимо капкан при першому вході
+                    localStorage.setItem(trapKey, 'active');
+                }
             }
 
             // 5. Fetch Existing Answers
