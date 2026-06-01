@@ -243,14 +243,17 @@ export const StudentSessionPage = () => {
             if (Date.now() < gracePeriodEndsAtRef.current) return;
 
             const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-            if (isTouchDevice) {
-                if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
-                blurTimeoutRef.current = setTimeout(() => {
-                    handleCheatAttempt('blur');
-                }, 3000);
-            } else {
+            // Desktop: visibilitychange catches tab switches, fullscreenchange catches
+            // fullscreen exit, focus polling catches app switches — blur is redundant
+            // and causes double-strikes alongside visibilitychange.
+            if (!isTouchDevice) return;
+
+            // Touch only: delayed strike for Slide Over (which doesn't always
+            // trigger visibilitychange on iPad).
+            if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
+            blurTimeoutRef.current = setTimeout(() => {
                 handleCheatAttempt('blur');
-            }
+            }, 3000);
         };
         const handleFocus = () => {
             if (blurTimeoutRef.current) {
