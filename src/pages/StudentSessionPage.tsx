@@ -71,7 +71,8 @@ const QuestionDisplay = React.memo(({
     isFirst,
     isLast,
     isFinished,
-    subjectName
+    subjectName,
+    isEnglishSubject,
 }: {
     question: Question,
     answer: any,
@@ -81,11 +82,15 @@ const QuestionDisplay = React.memo(({
     isFirst: boolean,
     isLast: boolean,
     isFinished: boolean,
-    subjectName?: string
+    subjectName?: string,
+    isEnglishSubject?: boolean,
 }) => {
 
     return (
-        <div className="bg-white rounded-3xl p-6 md:p-8 shadow-md border border-slate-200">
+        <div
+            className={cn("bg-white rounded-3xl p-6 md:p-8 shadow-md border border-slate-200", isEnglishSubject && "select-none notranslate")}
+            translate={isEnglishSubject ? 'no' : undefined}
+        >
             {/* Question Content */}
             <div className="prose prose-slate max-w-none prose-xl prose-img:rounded-xl prose-img:shadow-md prose-img:max-h-[400px] prose-p:text-2xl prose-p:text-slate-800 prose-p:font-semibold">
                 <ReactMarkdown
@@ -619,6 +624,13 @@ export const StudentSessionPage = () => {
     const activeQuestions = questions.filter((q: any) => q.test_id === activeTestId);
     const currentQuestion = activeQuestions[currentQuestionIndex];
 
+    const subjectNameLower = (activeTest as any)?.subjects?.name?.toLowerCase() || '';
+    const isEnglishSubject =
+        subjectNameLower.includes('англ') ||
+        subjectNameLower.includes('english') ||
+        subjectNameLower.includes('foreign') ||
+        subjectNameLower.includes('ийська');
+
     // --- STATES ---
     // @ts-ignore
     const myAttempt = session?.test_attempts?.[0];
@@ -795,7 +807,10 @@ export const StudentSessionPage = () => {
 
     // --- ACTIVE TEST UI ---
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col">
+        <div
+            className="min-h-screen bg-slate-50 flex flex-col"
+            onContextMenu={isEnglishSubject ? e => e.preventDefault() : undefined}
+        >
             {cheatWarningVisible && !isFinished && (
                 <div className="fixed inset-0 z-[9999] bg-red-600 flex flex-col items-center justify-center p-6 text-white text-center animate-in fade-in duration-200">
                     <AlertTriangle className="w-24 h-24 mb-6 text-white animate-pulse" />
@@ -934,6 +949,7 @@ export const StudentSessionPage = () => {
 
                             isFinished={isFinished}
                             subjectName={activeTest?.subjects?.name}
+                            isEnglishSubject={isEnglishSubject}
                         />
                     ) : (
                         <div className="text-center py-12 text-slate-400">Питань у цьому блоці немає.</div>
