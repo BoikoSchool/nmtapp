@@ -52,6 +52,16 @@ npm run preview  # Прев'ю prod-білду
 
 Тестів немає. Перевірка — вручну через браузер.
 
+## Авторизація
+
+Вхід — виключно через **Google OAuth** (`supabase.auth.signInWithOAuth`). Magic Link/OTP вимкнено.
+
+- Новий користувач автоматично отримує profile з `role='student'` через тригер `handle_new_user()` в БД (`schema_v7.sql`).
+- Роль `admin` проставляється вручну в таблиці `profiles` через Supabase Dashboard.
+- `AuthProvider` → `onAuthStateChange` підхоплює сесію після OAuth-редиректу автоматично.
+- `ProtectedRoute` перевіряє `user` (auth) і `isAdmin` (роль з `profiles`).
+- `redirectTo: window.location.origin` — URL має бути в Allowed Redirect URLs у Supabase Dashboard.
+
 ## Змінні середовища
 
 ```
