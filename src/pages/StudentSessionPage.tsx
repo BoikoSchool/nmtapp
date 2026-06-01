@@ -146,7 +146,7 @@ export const StudentSessionPage = () => {
     const [attemptId, setAttemptId] = useState<string | null>(null);
 
     // --- Збереження відповідей (True Debounce & Queue) ---
-    const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const pendingSavesRef = useRef<Promise<any>[]>([]);
     const unsavedAnswersRef = useRef<Record<string, any>>({});
 
