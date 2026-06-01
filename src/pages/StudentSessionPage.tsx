@@ -164,6 +164,21 @@ export const StudentSessionPage = () => {
     const cheatStrikesRef = useRef(0);
     const gracePeriodEndsAtRef = useRef(0);
     const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const strikeAutoSubmitRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const strikeCountdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const [strikeCountdown, setStrikeCountdown] = useState<number | null>(null);
+
+    const clearStrikeTimer = () => {
+        if (strikeAutoSubmitRef.current) {
+            clearTimeout(strikeAutoSubmitRef.current);
+            strikeAutoSubmitRef.current = null;
+        }
+        if (strikeCountdownIntervalRef.current) {
+            clearInterval(strikeCountdownIntervalRef.current);
+            strikeCountdownIntervalRef.current = null;
+        }
+        setStrikeCountdown(null);
+    };
 
     // Змінна для визначення мобільних/планшетів (використовується для оптимізації PDF та античиту)
     const isTouchDevice = typeof window !== 'undefined' && (('ontouchstart' in window) || (navigator.maxTouchPoints > 0));
@@ -346,8 +361,19 @@ export const StudentSessionPage = () => {
         }
 
         if (newStrikes >= 3) {
-            // Auto finish on 3rd strike
             handleFinish(true);
+        } else {
+            // Start 60-second auto-submit countdown
+            let secondsLeft = 60;
+            setStrikeCountdown(secondsLeft);
+            strikeCountdownIntervalRef.current = setInterval(() => {
+                secondsLeft -= 1;
+                setStrikeCountdown(secondsLeft);
+            }, 1000);
+            strikeAutoSubmitRef.current = setTimeout(() => {
+                clearStrikeTimer();
+                handleFinish(true);
+            }, 60_000);
         }
     };
 
@@ -395,6 +421,8 @@ export const StudentSessionPage = () => {
 
     const handleFinish = async (force: boolean = false) => {
         if (!attemptId || finishing) return;
+
+        clearStrikeTimer();
 
         if (!force) {
             const isConfirmed = window.confirm('Ви впевнені, що хочете завершити тест?');
@@ -636,6 +664,9 @@ export const StudentSessionPage = () => {
 
     useEffect(() => {
         return () => {
+            if (strikeAutoSubmitRef.current) clearTimeout(strikeAutoSubmitRef.current);
+            if (strikeCountdownIntervalRef.current) clearInterval(strikeCountdownIntervalRef.current);
+
             if (activeRef.current && attemptRef.current) {
                 // Компонент вивантажується, а тест ще активний!
                 supabase.rpc('log_cheat_attempt', {
@@ -772,13 +803,20 @@ export const StudentSessionPage = () => {
                     <p className="text-xl md:text-2xl font-medium mb-4 opacity-90 max-w-xl">
                         Зафіксовано спробу виходу з повноекранного режиму або втрату фокусу вікна. Це вважається спробою списування.
                     </p>
-                    <div className="text-2xl font-black bg-white/20 px-8 py-3 rounded-2xl mb-12 border border-white/30 backdrop-blur-sm">
+                    <div className="text-2xl font-black bg-white/20 px-8 py-3 rounded-2xl mb-4 border border-white/30 backdrop-blur-sm">
                         Попередження {cheatStrikes} з 3
                     </div>
-                    
+
+                    {strikeCountdown !== null && (
+                        <div className={`text-lg font-bold mb-8 ${strikeCountdown <= 10 ? 'text-yellow-200 animate-pulse' : 'opacity-70'}`}>
+                            Автоматична здача через: {String(Math.floor(strikeCountdown / 60)).padStart(1, '0')}:{String(strikeCountdown % 60).padStart(2, '0')}
+                        </div>
+                    )}
+
                     {cheatStrikes < 3 ? (
                         <button
                             onClick={() => {
+                                clearStrikeTimer();
                                 startGracePeriod();
                                 document.documentElement.requestFullscreen().catch(e => console.error(e));
                                 setCheatWarningVisible(false);
