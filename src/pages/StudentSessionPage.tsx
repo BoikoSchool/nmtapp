@@ -539,24 +539,28 @@ export const StudentSessionPage = () => {
                 
                 if (trapExists) {
                     // Користувач повернувся після закриття сторінки
-                    await supabase.rpc('log_cheat_attempt', {
-                        p_attempt_id: attempt.id,
-                        p_log_entry: { time: new Date().toISOString(), type: 'illegal_exit' }
-                    });
-                    
-                    const { data: updatedAttempt } = await supabase.from('test_attempts').select('cheat_strikes').eq('id', attempt.id).single();
-                    if (updatedAttempt) {
-                        setCheatStrikes(updatedAttempt.cheat_strikes);
-                        cheatStrikesRef.current = updatedAttempt.cheat_strikes;
-                        
-                        // Показуємо попередження
-                        setCheatWarningVisible(true);
-                        cheatWarningVisibleRef.current = true;
+                    // Не зараховуємо страйк якщо сесія на паузі (напр. екран погас під час паузи)
+                    if (sess.status !== 'paused') {
+                        await supabase.rpc('log_cheat_attempt', {
+                            p_attempt_id: attempt.id,
+                            p_log_entry: { time: new Date().toISOString(), type: 'illegal_exit' }
+                        });
 
-                        if (updatedAttempt.cheat_strikes >= 3) {
-                            handleFinish(true);
+                        const { data: updatedAttempt } = await supabase.from('test_attempts').select('cheat_strikes').eq('id', attempt.id).single();
+                        if (updatedAttempt) {
+                            setCheatStrikes(updatedAttempt.cheat_strikes);
+                            cheatStrikesRef.current = updatedAttempt.cheat_strikes;
+
+                            // Показуємо попередження
+                            setCheatWarningVisible(true);
+                            cheatWarningVisibleRef.current = true;
+
+                            if (updatedAttempt.cheat_strikes >= 3) {
+                                handleFinish(true);
+                            }
                         }
                     }
+                    // Trap залишається в localStorage — спрацює при закритті під час активної сесії
                 } else {
                     // Ставимо капкан при першому вході
                     localStorage.setItem(trapKey, 'active');
