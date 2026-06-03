@@ -231,6 +231,7 @@ export const StudentSessionPage = () => {
                     if (attempt && attempt.status !== 'finished') {
                         await supabase.rpc('finalize_exam_v7', { p_attempt_id: attempt.id });
                         localStorage.removeItem(`nmt_trap_${attempt.id}`);
+                        localStorage.removeItem(`nmt_paused_${attempt.id}`);
                         loadSessionData();
                     }
                 }
@@ -254,6 +255,17 @@ export const StudentSessionPage = () => {
             setIsFullscreenReady(false);
         }
     }, [session?.status]);
+
+    // Manage pause marker so illegal_exit doesn't fire after device suspension during pause
+    useEffect(() => {
+        if (!attemptId) return;
+        const pausedKey = `nmt_paused_${attemptId}`;
+        if (session?.status === 'paused') {
+            localStorage.setItem(pausedKey, 'true');
+        } else if (session?.status === 'active' && isFullscreenReady) {
+            localStorage.removeItem(pausedKey);
+        }
+    }, [session?.status, isFullscreenReady, attemptId]);
 
     // Handle Anti-Cheat Listeners
     useEffect(() => {
@@ -455,6 +467,7 @@ export const StudentSessionPage = () => {
             if (error) throw error;
 
             localStorage.removeItem(`nmt_trap_${attemptId}`);
+            localStorage.removeItem(`nmt_paused_${attemptId}`);
 
             // Wait a small bit for DB to catch up
             await new Promise(r => setTimeout(r, 500));
@@ -539,8 +552,9 @@ export const StudentSessionPage = () => {
                 
                 if (trapExists) {
                     // Користувач повернувся після закриття сторінки
-                    // Не зараховуємо страйк якщо сесія на паузі (напр. екран погас під час паузи)
-                    if (sess.status !== 'paused') {
+                    // Не зараховуємо страйк якщо сесія на паузі або студент повернувся після паузи
+                    const wasPaused = !!localStorage.getItem(`nmt_paused_${attempt.id}`);
+                    if (sess.status !== 'paused' && !wasPaused) {
                         await supabase.rpc('log_cheat_attempt', {
                             p_attempt_id: attempt.id,
                             p_log_entry: { time: new Date().toISOString(), type: 'illegal_exit' }
