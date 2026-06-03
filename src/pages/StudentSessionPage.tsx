@@ -167,6 +167,7 @@ export const StudentSessionPage = () => {
     const cheatWarningVisibleRef = useRef(false);
     const [cheatStrikes, setCheatStrikes] = useState<number>(0);
     const cheatStrikesRef = useRef(0);
+    const sessionStatusRef = useRef<string | undefined>(undefined);
     const gracePeriodEndsAtRef = useRef(0);
     const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const strikeAutoSubmitRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -240,6 +241,11 @@ export const StudentSessionPage = () => {
             supabase.removeChannel(channel);
         };
     }, [sessionId, user]);
+
+    // Keep sessionStatusRef in sync so event handlers always read the latest value
+    useEffect(() => {
+        sessionStatusRef.current = session?.status;
+    }, [session?.status]);
 
     // Handle session status transitions (paused -> active)
     useEffect(() => {
@@ -345,7 +351,7 @@ export const StudentSessionPage = () => {
 
     const handleCheatAttempt = async (type: string) => {
         // Prevent duplicate firing while modal is open or session is ending
-        if (finishing || cheatWarningVisibleRef.current || session?.status !== 'active') return;
+        if (finishing || cheatWarningVisibleRef.current || sessionStatusRef.current !== 'active') return;
 
         cheatWarningVisibleRef.current = true;
         setCheatWarningVisible(true);
