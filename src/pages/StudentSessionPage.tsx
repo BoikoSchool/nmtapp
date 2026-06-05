@@ -372,6 +372,9 @@ export const StudentSessionPage = () => {
         const newStrikes = cheatStrikesRef.current;
         setCheatStrikes(newStrikes);
 
+        // Remove trap so an iOS-triggered reload after this strike doesn't double-count
+        if (attemptId) localStorage.removeItem(`nmt_trap_${attemptId}`);
+
         if (attemptId) {
             try {
                 await supabase.rpc('log_cheat_attempt', {
@@ -442,8 +445,9 @@ export const StudentSessionPage = () => {
         return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     };
 
-    const handleFinish = async (force: boolean = false) => {
-        if (!attemptId || finishing) return;
+    const handleFinish = async (force: boolean = false, overrideAttemptId?: string) => {
+        const effectiveId = overrideAttemptId ?? attemptId;
+        if (!effectiveId || finishing) return;
 
         clearStrikeTimer();
 
@@ -457,17 +461,17 @@ export const StudentSessionPage = () => {
 
             // 1. Примусово зберігаємо все, що зависло в локальній черзі
             await flushSaves();
-            
+
             // 2. Чекаємо, поки всі мережеві запити на збереження завершаться
             if (pendingSavesRef.current.length > 0) {
                 await Promise.allSettled(pendingSavesRef.current);
             }
 
-            const { error } = await supabase.rpc('finalize_exam_v7', { p_attempt_id: attemptId });
+            const { error } = await supabase.rpc('finalize_exam_v7', { p_attempt_id: effectiveId });
             if (error) throw error;
 
-            localStorage.removeItem(`nmt_trap_${attemptId}`);
-            localStorage.removeItem(`nmt_paused_${attemptId}`);
+            localStorage.removeItem(`nmt_trap_${effectiveId}`);
+            localStorage.removeItem(`nmt_paused_${effectiveId}`);
 
             // Wait a small bit for DB to catch up
             await new Promise(r => setTimeout(r, 500));
@@ -570,7 +574,7 @@ export const StudentSessionPage = () => {
                             cheatWarningVisibleRef.current = true;
 
                             if (updatedAttempt.cheat_strikes >= 3) {
-                                handleFinish(true);
+                                handleFinish(true, attempt.id);
                             }
                         }
                     }
@@ -860,6 +864,8 @@ export const StudentSessionPage = () => {
                                 document.documentElement.requestFullscreen().catch(e => console.error(e));
                                 setCheatWarningVisible(false);
                                 cheatWarningVisibleRef.current = false;
+                                // Restore trap: student confirmed return, future exits must be caught
+                                if (attemptId) localStorage.setItem(`nmt_trap_${attemptId}`, 'active');
                             }}
                             className="px-10 py-5 bg-white text-red-600 font-extrabold rounded-2xl text-xl hover:bg-red-50 hover:scale-105 transition-all active:scale-95 shadow-2xl flex items-center gap-3"
                         >
